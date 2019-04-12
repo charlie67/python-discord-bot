@@ -2,12 +2,9 @@
 import discord
 from discord.ext import commands
 
-
 COMMAND_START = '-'
 bot = commands.Bot(command_prefix=COMMAND_START)
 bot.command()
-
-TOKEN = 'NTY2MzA5OTQ3NjUxMTI5MzQ0.XLDIpA.tUPvZxsyicFsenycpmmXkeWonDI'
 
 
 @bot.event
@@ -16,29 +13,31 @@ async def on_message(message):
     if author != bot.user:
         await bot.process_commands(message)
 
-# @client.event
-# async def on_message(message):
-#     # we do not want the bot to reply to itself
-#     if message.author == client.user:
-#         return
-#
-#     if message.content.startswith(COMMAND_START + 'hello'):
-#         msg = 'Hello {0.author.mention}'.format(message)
-#         await client.send_message(message.channel, msg)
-#
-#     if message.content.startswith(COMMAND_START + 'join'):
-#         voice_channel_to_join = message.author.voice_channel
-#
-#         if voice_channel_to_join is None:
-#             msg = "no channel to join dum dum"
-#             await client.send_message(message.channel, msg)
-#         else:
-#             await client.join_voice_channel(voice_channel_to_join)
-
 
 @bot.command()
 async def hello(ctx):
-    await ctx.send("Hey there")
+    author = ctx.author
+    await ctx.send("Hey there " + author.name)
+
+
+@bot.command(aliases=['summon'])
+async def join(ctx):
+    guild = ctx.guild
+    author: discord.Member = ctx.author
+    if author.voice is not None:
+        return await discord.utils.get(guild.voice_channels, name=author.voice.channel.name).connect()
+    else:
+        await ctx.send(author.mention + " you need to be in a voice channel first...")
+
+
+@bot.command()
+async def leave(ctx):
+    guild: discord.Guild = ctx.guild
+    voice_client: discord.VoiceClient = guild.voice_client
+    if voice_client is not None:
+        await voice_client.disconnect()
+    else:
+        await ctx.send("I'm not connected to a voice channel")
 
 
 @bot.event
@@ -48,4 +47,6 @@ async def on_ready():
     print(bot.user.id)
     print('------')
 
-bot.run(TOKEN)
+if __name__ == '__main__':
+    import config
+    bot.run(config.token)
