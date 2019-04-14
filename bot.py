@@ -1,8 +1,11 @@
-# Work with Python 3.6
 import discord
 from discord.ext import commands
+import logging
+
 
 COMMAND_START = '-'
+
+
 bot = commands.Bot(command_prefix=COMMAND_START)
 bot.command()
 
@@ -20,24 +23,19 @@ async def hello(ctx):
     await ctx.send("Hey there " + author.name)
 
 
-@bot.command(aliases=['summon'])
-async def join(ctx):
-    guild = ctx.guild
-    author: discord.Member = ctx.author
-    if author.voice is not None:
-        return await discord.utils.get(guild.voice_channels, name=author.voice.channel.name).connect()
-    else:
-        await ctx.send(author.mention + " you need to be in a voice channel first...")
-
-
 @bot.command()
-async def leave(ctx):
-    guild: discord.Guild = ctx.guild
-    voice_client: discord.VoiceClient = guild.voice_client
-    if voice_client is not None:
-        await voice_client.disconnect()
-    else:
-        await ctx.send("I'm not connected to a voice channel")
+async def doyouwin(ctx):
+    await ctx.send("of course I do" + "\n" + "bitch")
+
+
+@bot.command(aliases=['byedriver'])
+async def bye(ctx):
+    await ctx.send("https://www.youtube.com/watch?v=qpmFnUTkpL0")
+
+
+@bot.command(aliases=['mike'])
+async def willy(ctx):
+    await ctx.send(file=discord.File('/home/charlie/Desktop/discord-bot/assets/images/willy.jpg'))
 
 
 @bot.event
@@ -49,4 +47,12 @@ async def on_ready():
 
 if __name__ == '__main__':
     import config
+
+    logger = logging.getLogger('discord')
+    logger.setLevel(logging.DEBUG)
+    handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+    handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+    logger.addHandler(handler)
+
+    bot.load_extension("voice.voice_commands")
     bot.run(config.token)

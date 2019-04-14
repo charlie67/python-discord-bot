@@ -1,10 +1,12 @@
 # discord-bot
 
-To set up: <br />
+###Set up: <br />
+follow the virtualenv instructions:
 https://discordpy.readthedocs.io/en/rewrite/intro.html
-follow the virtualenv instructions
+For youtube client install <br />
+pip install --upgrade google-api-python-client
 
-The token is stored in config.py create this file and then add config='token_here'
+The discord token is stored in config.py create this file and then add config='token_here'
 
 
 ### Commands
