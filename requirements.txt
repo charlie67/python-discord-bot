@@ -1,0 +1,4 @@
+discord==1.0.1
+discord.py==1.0.1
+youtube_dl==2019.4.7
+google-api-python-client==1.7.8

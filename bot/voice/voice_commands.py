@@ -5,8 +5,8 @@ import re
 import os
 import random
 import youtube_dl
-from voice.voice_helpers import get_video_id, get_youtube_title
-from voice.YTDLSource import  YTDLSource
+from bot.voice.voice_helpers import get_video_id, get_youtube_title
+from bot.voice.YTDLSource import  YTDLSource
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
 

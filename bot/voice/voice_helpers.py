@@ -1,7 +1,6 @@
 from urllib.parse import urlparse, parse_qs
 import config
 import googleapiclient.discovery
-import json
 
 api_service_name = "youtube"
 api_version = "v3"
