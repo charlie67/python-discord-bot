@@ -5,8 +5,8 @@ import re
 import os
 import random
 import youtube_dl
-from bot.voice.voice_helpers import get_video_id, get_youtube_title
-from bot.voice.YTDLSource import  YTDLSource
+from voice.voice_helpers import get_video_id, get_youtube_title
+from voice.YTDLSource import YTDLSource
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
 
@@ -98,17 +98,16 @@ class Voice(commands.Cog):
 
         if voice_client.is_playing():
             await ctx.send("I'm already playing be patient will you")
-            # todo queuing system
             return
 
         if file_name is None:
-            file_list = os.listdir("/home/charlie/Desktop/discord-bot/assets/audio")
+            file_list = os.listdir("/bot/assets/audio")
             file_name = random.choice(file_list)
 
         if not file_name.endswith(".mp3"):
             file_name = file_name + ".mp3"
 
-        audio_source = FFmpegPCMAudio("/home/charlie/Desktop/discord-bot/assets/audio/" + file_name,
+        audio_source = FFmpegPCMAudio("/bot/assets/audio/" + file_name,
                                       executable=FFMPEG_PATH)
         voice_client.play(audio_source)
 

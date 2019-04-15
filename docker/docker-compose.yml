@@ -1,0 +1,8 @@
+version: '3'
+services:
+  discord-bot:
+    image: discord-bot
+    hostname: discord-bot
+    volumes:
+      - /discord-bot/config.py:/bot/config.py
+      - /discord-bot/assets:/bot/assets

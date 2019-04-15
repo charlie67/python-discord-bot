@@ -35,7 +35,7 @@ async def bye(ctx):
 
 @bot.command(aliases=['mike'])
 async def willy(ctx):
-    await ctx.send(file=discord.File('/home/charlie/Desktop/discord-bot/assets/images/willy.jpg'))
+    await ctx.send(file=discord.File('/bot/assets/images/willy.jpg'))
 
 
 @bot.event
