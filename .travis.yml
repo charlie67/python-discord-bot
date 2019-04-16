@@ -1,4 +1,6 @@
 language: python
+services:
+  - docker
 install:
   - pip install -r bot/requirements.txt
 script: "./build.sh"
