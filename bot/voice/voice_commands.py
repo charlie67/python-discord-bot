@@ -5,7 +5,7 @@ import re
 import os
 import random
 import youtube_dl
-from voice.voice_helpers import get_video_id, get_youtube_title
+from voice.voice_helpers import get_video_id, get_youtube_title, search_for_video
 from voice.YTDLSource import YTDLSource
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
@@ -82,13 +82,15 @@ class Voice(commands.Cog):
         valid_url = re.search(pattern, url)
 
         if not valid_url:
-            await ctx.send("Can't play that")
+            video_id, video_title, video_url = search_for_video(url)
         else:
             video_id = get_video_id(url)
             video_title = get_youtube_title(video_id)
-            player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
-            voice_client.play(player, after=after_play)
-            await ctx.send('Now playing: {}'.format(video_title))
+            video_url = url
+
+        player = await YTDLSource.from_url(video_url, loop=self.bot.loop, stream=True)
+        voice_client.play(player, after=after_play)
+        await ctx.send('Now playing: {}'.format(video_title))
 
     @commands.command()
     async def playfile(self, ctx, file_name: str = None):
