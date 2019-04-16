@@ -5,7 +5,7 @@ import re
 import os
 import random
 import youtube_dl
-from voice.voice_helpers import get_video_id, get_youtube_title, search_for_video
+from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video
 from voice.YTDLSource import YTDLSource
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
@@ -64,14 +64,17 @@ class Voice(commands.Cog):
             await ctx.send("I'm not connected to an audio channel")
 
     @commands.command()
-    async def play(self, ctx, url: str = None):
-        if url is None:
-            await ctx.send("Need to provide the URL to play")
+    async def play(self, ctx, *, video_or_search):
+        if video_or_search is None:
+            await ctx.send("Need to provide something to play")
             return
 
         voice_client = await get_or_create_audio_source(ctx)
         if voice_client is None:
             return
+
+        if voice_client.is_playing():
+            return await ctx.send("tell me to implement a queue")
 
         def after_play(error):
             if error is not None:
@@ -79,18 +82,21 @@ class Voice(commands.Cog):
 
         pattern = "^(?:https?:\\/\\/)?(?:www\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(?:embed\\/|v\\/|watch\\?v=" \
                   "|watch\\?.+&v=))((\\w|-){11})?$"
-        valid_url = re.search(pattern, url)
+        valid_url = re.search(pattern, video_or_search)
 
         if not valid_url:
-            video_id, video_title, video_url = search_for_video(url)
+            await ctx.send("Searching for " + video_or_search)
+            video_id, video_url, = search_for_video(video_or_search)
+            video_title, video_length = get_youtube_details(video_id)
         else:
-            video_id = get_video_id(url)
-            video_title = get_youtube_title(video_id)
-            video_url = url
+            video_id = get_video_id(video_or_search)
+            video_title, video_length = get_youtube_details(video_id)
+            video_url = video_or_search
 
         player = await YTDLSource.from_url(video_url, loop=self.bot.loop, stream=True)
         voice_client.play(player, after=after_play)
         await ctx.send('Now playing: {}'.format(video_title))
+        await ctx.send(embed=discord.Embed(title=video_title, url=video_url))
 
     @commands.command()
     async def playfile(self, ctx, file_name: str = None):
