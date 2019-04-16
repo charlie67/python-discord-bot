@@ -1,1 +1,1 @@
-docker build --tag discord-bot
+docker build . --tag discord-bot
