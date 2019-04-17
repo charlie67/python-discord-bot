@@ -19,6 +19,7 @@ ytdl_format_options = {
 ffmpeg_options = {
     'options': '-vn'
 }
+beforeArgs = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
@@ -42,4 +43,4 @@ class YTDLSource(discord.PCMVolumeTransformer):
             data = data['entries'][0]
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options, before_options=beforeArgs), data=data)
