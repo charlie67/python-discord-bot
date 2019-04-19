@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 from discord import FFmpegPCMAudio
@@ -46,9 +47,14 @@ def setup(bot):
 
 
 class Voice(commands.Cog):
+    video_queue = asyncio.Queue()
+    play_history = asyncio.Queue(10)
+    play_next_song = asyncio.Event()
+    currently_playing = None
 
     def __init__(self, bot):
         self.bot = bot
+        bot.loop.create_task(self.audio_player_task())
 
     @commands.command(aliases=['summon'])
     async def join(self, ctx):
@@ -61,7 +67,34 @@ class Voice(commands.Cog):
         if voice_client is not None:
             await voice_client.disconnect()
         else:
-            await ctx.send("I'm not connected to an audio channel")
+            await ctx.send("... What are you actually expecting me to do??")
+
+    async def audio_player_task(self):
+        while True:
+            # if it's not currently playing and there is something to play
+            if self.currently_playing is None and self.video_queue.qsize() > 0:
+                print("song player task", self.currently_playing, self.video_queue.qsize())
+                self.play_next_song.clear()
+                current = await self.video_queue.get()
+                video = current[0]
+                print("took ", video, " off the queue")
+                player = current[1]
+                voice_client = current[2]
+                self.currently_playing = video
+                voice_client.play(player, after=self.toggle_next)
+                await self.play_next_song.wait()
+            else:
+                print("playing so skipping audio player task")
+                await self.play_next_song.wait()
+
+    def toggle_next(self, error):
+        if error is not None:
+            print("player error", error)
+            return
+        self.currently_playing = None
+
+        if self.video_queue.qsize() > 0:
+            self.bot.loop.call_soon_threadsafe(self.play_next_song.set)
 
     @commands.command()
     async def play(self, ctx, *, video_or_search):
@@ -72,13 +105,6 @@ class Voice(commands.Cog):
         voice_client = await get_or_create_audio_source(ctx)
         if voice_client is None:
             return
-
-        if voice_client.is_playing():
-            return await ctx.send("tell me to implement a queue")
-
-        def after_play(error):
-            if error is not None:
-                print("player error", error)
 
         pattern = "^(?:https?:\\/\\/)?(?:www\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(?:embed\\/|v\\/|watch\\?v=" \
                   "|watch\\?.+&v=))((\\w|-){11})?$"
@@ -93,10 +119,36 @@ class Voice(commands.Cog):
             video_title, video_length = get_youtube_details(video_id)
             video_url = video_or_search
 
+        video = Video(video_url=video_url, video_id=video_id, thumbnail_url=None, video_title=video_title,
+                      video_length=video_length)
         player = await YTDLSource.from_url(video_url, loop=self.bot.loop, stream=True)
-        voice_client.play(player, after=after_play)
-        await ctx.send('Now playing: {}'.format(video_title))
-        await ctx.send(embed=discord.Embed(title=video_title, url=video_url))
+        pair = (video, player, voice_client)
+        print("putting ", video, " onto the queue ", pair)
+        await self.video_queue.put(pair)
+
+        if not voice_client.is_playing():
+            self.bot.loop.call_soon_threadsafe(self.play_next_song.set)
+            await ctx.send('Now playing: {}'.format(video_title))
+            await ctx.send(embed=discord.Embed(title=video_title, url=video_url))
+        else:
+            await ctx.send('Queuing: {}'.format(video_title))
+            await ctx.send(embed=discord.Embed(title=video_title, url=video_url))
+
+    @commands.command()
+    async def skip(self, ctx):
+        guild = ctx.guild
+
+        voice_client: discord.VoiceClient = guild.voice_client
+        if voice_client is not None:
+            if voice_client.is_playing() or voice_client.is_paused():
+                voice_client.stop()
+                self.currently_playing = None
+
+                await ctx.send("Skipping")
+            else:
+                return await ctx.send("Not currently playing")
+        else:
+            return await ctx.send("You need to be in a voice channel")
 
     @commands.command()
     async def playfile(self, ctx, file_name: str = None):
@@ -127,8 +179,10 @@ class Voice(commands.Cog):
         if voice_client is not None:
             if voice_client.is_playing() or voice_client.is_paused():
                 voice_client.stop()
+                self.currently_playing = None
+                await ctx.send("Stopping")
         else:
-            ctx.send("Nothing to stop")
+            await ctx.send("Nothing to stop")
 
     @commands.command()
     async def pause(self, ctx):
@@ -137,8 +191,9 @@ class Voice(commands.Cog):
         voice_client: discord.VoiceClient = guild.voice_client
         if voice_client is not None and voice_client.is_playing():
             voice_client.pause()
+            await ctx.send("Pausing")
         else:
-            ctx.send("Nothing to pause")
+            await ctx.send("Nothing to pause")
 
     @commands.command()
     async def resume(self, ctx):
@@ -147,5 +202,50 @@ class Voice(commands.Cog):
         voice_client: discord.VoiceClient = guild.voice_client
         if voice_client is not None and voice_client.is_paused():
             voice_client.resume()
+            await ctx.send("Resuming")
         else:
-            ctx.send("Nothing to resume")
+            await ctx.send("Nothing to resume")
+
+    @commands.command()
+    async def queue(self, ctx):
+        if self.video_queue.qsize() == 0:
+            await ctx.send("Queue is empty")
+        else:
+            await ctx.send("There are items in the queue")
+            # go over the queue and print every item
+
+    @commands.command(aliases=['np'])
+    async def nowplaying(self, ctx):
+        if self.currently_playing is None:
+            return await ctx.send("Not playing anything")
+        await ctx.send('Now playing: {}'.format(self.currently_playing.video_title))
+        await ctx.send(embed=discord.Embed(title=self.currently_playing.video_title, url=self.currently_playing.video_url))
+
+    @commands.command()
+    async def dishwasher(self, ctx):
+        voice_client = await get_or_create_audio_source(ctx)
+        if voice_client is None:
+            return
+
+        if voice_client.is_playing():
+            await ctx.send("I'm already playing be patient will you")
+            return
+
+        audio_source = FFmpegPCMAudio("/bot/assets/audio/dishwasher.mp3",
+                                      executable=FFMPEG_PATH)
+        voice_client.play(audio_source)
+
+
+class Video:
+    video_url: None
+    video_id: None
+    video_title: None
+    thumbnail_url: None
+    video_length: None
+
+    def __init__(self, video_url, video_id, video_title, thumbnail_url, video_length):
+        self.video_url = video_url
+        self.video_id = video_id
+        self.video_title = video_title
+        self.thumbnail_url = thumbnail_url
+        self.video_length = video_length
