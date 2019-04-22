@@ -66,6 +66,8 @@ class Voice(commands.Cog):
         voice_client: discord.VoiceClient = guild.voice_client
         if voice_client is not None:
             await voice_client.disconnect()
+            self.currently_playing = None
+            self.video_queue = asyncio.Queue()
         else:
             await ctx.send("... What are you actually expecting me to do??")
 
