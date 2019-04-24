@@ -8,6 +8,7 @@ import random
 import youtube_dl
 from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video
 from voice.YTDLSource import YTDLSource
+import copy
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
 
@@ -22,7 +23,7 @@ ytdl_format_options = {
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0' # bind to ipv4 since ipv6 addresses cause issues sometimes
+    'source_address': '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
 }
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
@@ -47,14 +48,12 @@ def setup(bot):
 
 
 class Voice(commands.Cog):
-    video_queue = asyncio.Queue()
+    video_queue_map = {}
     play_history = asyncio.Queue(10)
-    play_next_song = asyncio.Event()
-    currently_playing = None
+    currently_playing_map = {}
 
     def __init__(self, bot):
         self.bot = bot
-        bot.loop.create_task(self.audio_player_task())
 
     @commands.command(aliases=['summon'])
     async def join(self, ctx):
@@ -66,37 +65,32 @@ class Voice(commands.Cog):
         voice_client: discord.VoiceClient = guild.voice_client
         if voice_client is not None:
             await voice_client.disconnect()
-            self.currently_playing = None
-            self.video_queue = asyncio.Queue()
+            del self.currently_playing_map[ctx.guild.id]
+            del self.video_queue_map[ctx.guild.id]
         else:
             await ctx.send("... What are you actually expecting me to do??")
 
-    async def audio_player_task(self):
-        while True:
-            # if it's not currently playing and there is something to play
-            if self.currently_playing is None and self.video_queue.qsize() > 0:
-                print("song player task", self.currently_playing, self.video_queue.qsize())
-                self.play_next_song.clear()
-                current = await self.video_queue.get()
-                video = current[0]
-                print("took ", video, " off the queue")
-                player = current[1]
-                voice_client = current[2]
-                self.currently_playing = video
-                voice_client.play(player, after=self.toggle_next)
-                await self.play_next_song.wait()
-            else:
-                print("playing so skipping audio player task")
-                await self.play_next_song.wait()
+    async def audio_player_task(self, server_id):
+        video_queue = self.video_queue_map.get(server_id)
+        current = await video_queue.get()
+        video = current[0]
+        print("took ", video, " off the queue")
+        player = current[1]
+        voice_client = current[2]
+        ctx = current[3]
+        await ctx.send('Now playing: {}'.format(video.video_title))
+        await ctx.send(embed=discord.Embed(title=video.video_title, url=video.video_url))
+        self.currently_playing_map[ctx.guild.id] = video
+        voice_client.play(player, after=lambda: self.toggle_next(server_id=ctx.guild.id))
 
-    def toggle_next(self, error):
-        if error is not None:
-            print("player error", error)
-            return
-        self.currently_playing = None
+    def toggle_next(self, server_id):
+        if self.currently_playing_map.keys().__contains__(server_id):
+            del self.currently_playing_map[server_id]
+        print("toggling next for", server_id)
 
-        if self.video_queue.qsize() > 0:
-            self.bot.loop.call_soon_threadsafe(self.play_next_song.set)
+        video_queue = self.video_queue_map.get(server_id)
+        if video_queue.qsize() > 0:
+            asyncio.run_coroutine_threadsafe(self.audio_player_task(server_id=server_id), self.bot.loop)
 
     @commands.command()
     async def play(self, ctx, *, video_or_search):
@@ -124,14 +118,17 @@ class Voice(commands.Cog):
         video = Video(video_url=video_url, video_id=video_id, thumbnail_url=None, video_title=video_title,
                       video_length=video_length)
         player = await YTDLSource.from_url(video_url, loop=self.bot.loop, stream=True)
-        pair = (video, player, voice_client)
+        pair = (video, player, voice_client, ctx)
         print("putting ", video, " onto the queue ", pair)
-        await self.video_queue.put(pair)
+        server_id = ctx.guild.id
+        video_queue = self.video_queue_map.get(server_id)
+        if video_queue is None:
+            video_queue = asyncio.Queue()
+            self.video_queue_map[server_id] = video_queue
+        await video_queue.put(pair)
 
         if not voice_client.is_playing():
-            self.bot.loop.call_soon_threadsafe(self.play_next_song.set)
-            await ctx.send('Now playing: {}'.format(video_title))
-            await ctx.send(embed=discord.Embed(title=video_title, url=video_url))
+            self.toggle_next(server_id=ctx.guild.id)
         else:
             await ctx.send('Queuing: {}'.format(video_title))
             await ctx.send(embed=discord.Embed(title=video_title, url=video_url))
@@ -144,7 +141,7 @@ class Voice(commands.Cog):
         if voice_client is not None:
             if voice_client.is_playing() or voice_client.is_paused():
                 voice_client.stop()
-                self.currently_playing = None
+                self.toggle_next(server_id=ctx.guild.id)
 
                 await ctx.send("Skipping")
             else:
@@ -181,7 +178,7 @@ class Voice(commands.Cog):
         if voice_client is not None:
             if voice_client.is_playing() or voice_client.is_paused():
                 voice_client.stop()
-                self.currently_playing = None
+                del self.currently_playing_map[ctx.server.id]
                 await ctx.send("Stopping")
         else:
             await ctx.send("Nothing to stop")
@@ -210,18 +207,28 @@ class Voice(commands.Cog):
 
     @commands.command()
     async def queue(self, ctx):
-        if self.video_queue.qsize() == 0:
-            await ctx.send("Queue is empty")
+        server_id = ctx.guild.id
+        if not self.video_queue_map.keys().__contains__(server_id):
+            return await ctx.send("Queue is empty")
         else:
-            await ctx.send("There are items in the queue")
-            # go over the queue and print every item
+            return await ctx.send("Queue has something on but I haven't done this bit yet")
+            # new_map = self.video_queue_map.copy()
+            # new_queue = new_map[server_id]
+            # counter = 1
+            # while new_queue.qsize() > 0:
+            #     item = await new_queue.get()
+            #     video = item[0]
+            #     await ctx.send(counter.__str__() + ". " + video.video_title)
+            #     counter += 1
 
     @commands.command(aliases=['np'])
     async def nowplaying(self, ctx):
-        if self.currently_playing is None:
+        if not self.currently_playing_map.keys().__contains__(ctx.guild.id):
             return await ctx.send("Not playing anything")
-        await ctx.send('Now playing: {}'.format(self.currently_playing.video_title))
-        await ctx.send(embed=discord.Embed(title=self.currently_playing.video_title, url=self.currently_playing.video_url))
+        currently_playing = self.currently_playing_map[ctx.guild.id]
+        await ctx.send('Now playing: {}'.format(currently_playing.video_title))
+        await ctx.send(
+            embed=discord.Embed(title=currently_playing.video_title, url=currently_playing.video_url))
 
     @commands.command()
     async def dishwasher(self, ctx):
