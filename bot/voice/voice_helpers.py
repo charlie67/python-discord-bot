@@ -1,4 +1,3 @@
-import datetime
 from urllib.parse import urlparse, parse_qs
 import config
 import googleapiclient.discovery
