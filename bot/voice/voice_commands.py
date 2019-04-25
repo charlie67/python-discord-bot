@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import discord
 from discord.ext import commands
@@ -53,6 +54,7 @@ class Voice(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger('discord')
 
     @commands.command(aliases=['summon'])
     async def join(self, ctx):
@@ -74,7 +76,7 @@ class Voice(commands.Cog):
         current = video_queue.__getitem__(0)
         video_queue.__delitem__(0)
         video = current[0]
-        print("took ", video, " off the queue")
+        self.logger.debug("took ", video, " off the queue")
         player = current[1]
         voice_client = current[2]
         ctx = current[3]
@@ -86,7 +88,7 @@ class Voice(commands.Cog):
     def toggle_next(self, server_id):
         if self.currently_playing_map.keys().__contains__(server_id):
             del self.currently_playing_map[server_id]
-        print("toggling next for", server_id)
+        self.logger.debug("toggling next for", server_id)
 
         video_queue = self.video_queue_map.get(server_id)
         if video_queue.__len__() > 0:
@@ -119,7 +121,7 @@ class Voice(commands.Cog):
                       video_length=video_length)
         player = await YTDLSource.from_url(video_url, loop=self.bot.loop, stream=True)
         pair = (video, player, voice_client, ctx)
-        print("putting ", video, " onto the queue ", pair)
+        self.logger.debug("putting ", video, " onto the queue ", pair)
         server_id = ctx.guild.id
         video_queue = self.video_queue_map.get(server_id)
         if video_queue is None:
