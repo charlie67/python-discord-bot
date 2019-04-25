@@ -116,7 +116,7 @@ class Voice(commands.Cog):
             return
 
         pattern = "^(?:https?:\\/\\/)?(?:www\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(?:embed\\/|v\\/|watch\\?v=" \
-                  "|watch\\?.+&v=))((\\w|-){11})?$"
+                  "|watch\\?.+&v=))((\\w|-){11})?(&?.*)?$"
         valid_video_url = re.search(pattern, video_or_search)
 
         if not valid_video_url:
