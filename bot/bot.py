@@ -1,5 +1,8 @@
+import sys
+
 import discord
 from discord.ext import commands
+import logging
 
 COMMAND_START = '-'
 
@@ -46,11 +49,11 @@ async def on_ready():
 if __name__ == '__main__':
     import config
 
-    # logger = logging.getLogger('discord')
-    # logger.setLevel(logging.DEBUG)
-    # handler = logging.StreamHandler(sys.stdout)
-    # handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-    # logger.addHandler(handler)
+    logger = logging.getLogger('discord')
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+    logger.addHandler(handler)
 
     bot.load_extension("voice.voice_commands")
     bot.run(config.token)

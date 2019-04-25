@@ -1,4 +1,5 @@
 import asyncio
+
 import discord
 from discord.ext import commands
 from discord import FFmpegPCMAudio
@@ -8,7 +9,6 @@ import random
 import youtube_dl
 from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video
 from voice.YTDLSource import YTDLSource
-import copy
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
 
@@ -49,7 +49,6 @@ def setup(bot):
 
 class Voice(commands.Cog):
     video_queue_map = {}
-    play_history = asyncio.Queue(10)
     currently_playing_map = {}
 
     def __init__(self, bot):
@@ -72,7 +71,8 @@ class Voice(commands.Cog):
 
     async def audio_player_task(self, server_id):
         video_queue = self.video_queue_map.get(server_id)
-        current = await video_queue.get()
+        current = video_queue.__getitem__(0)
+        video_queue.__delitem__(0)
         video = current[0]
         print("took ", video, " off the queue")
         player = current[1]
@@ -89,7 +89,7 @@ class Voice(commands.Cog):
         print("toggling next for", server_id)
 
         video_queue = self.video_queue_map.get(server_id)
-        if video_queue.qsize() > 0:
+        if video_queue.__len__() > 0:
             asyncio.run_coroutine_threadsafe(self.audio_player_task(server_id=server_id), self.bot.loop)
 
     @commands.command()
@@ -123,9 +123,9 @@ class Voice(commands.Cog):
         server_id = ctx.guild.id
         video_queue = self.video_queue_map.get(server_id)
         if video_queue is None:
-            video_queue = asyncio.Queue()
+            video_queue = list()
             self.video_queue_map[server_id] = video_queue
-        await video_queue.put(pair)
+        video_queue.append(pair)
 
         if not voice_client.is_playing():
             self.toggle_next(server_id=ctx.guild.id)
@@ -141,7 +141,7 @@ class Voice(commands.Cog):
         if voice_client is not None:
             if voice_client.is_playing() or voice_client.is_paused():
                 voice_client.stop()
-                self.toggle_next(server_id=ctx.guild.id)
+                self.toggle_next(server_id=guild.id)
 
                 await ctx.send("Skipping")
             else:
@@ -211,15 +211,14 @@ class Voice(commands.Cog):
         if not self.video_queue_map.keys().__contains__(server_id):
             return await ctx.send("Queue is empty")
         else:
-            return await ctx.send("Queue has something on but I haven't done this bit yet")
-            # new_map = self.video_queue_map.copy()
-            # new_queue = new_map[server_id]
-            # counter = 1
-            # while new_queue.qsize() > 0:
-            #     item = await new_queue.get()
-            #     video = item[0]
-            #     await ctx.send(counter.__str__() + ". " + video.video_title)
-            #     counter += 1
+            video_list = self.video_queue_map[server_id]
+            counter = 0
+            while counter < video_list.__len__():
+                item = video_list.__getitem__(counter)
+                video = item[0]
+                item_counter = counter + 1
+                await ctx.send(item_counter.__str__() + ". " + video.video_title)
+                counter += 1
 
     @commands.command(aliases=['np'])
     async def nowplaying(self, ctx):
