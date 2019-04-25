@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 
 import discord
 from discord.ext import commands
@@ -55,6 +56,10 @@ class Voice(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.logger = logging.getLogger('discord')
+        self.logger.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+        self.logger.addHandler(handler)
 
     @commands.command(aliases=['summon'])
     async def join(self, ctx):
@@ -76,16 +81,19 @@ class Voice(commands.Cog):
         current = video_queue.__getitem__(0)
         video_queue.__delitem__(0)
         video = current[0]
-        self.logger.debug("took ", video, " off the queue")
         player = current[1]
         voice_client = current[2]
         ctx = current[3]
         await ctx.send('Now playing: {}'.format(video.video_title))
         await ctx.send(embed=discord.Embed(title=video.video_title, url=video.video_url))
         self.currently_playing_map[ctx.guild.id] = video
-        voice_client.play(player, after=lambda: self.toggle_next(server_id=ctx.guild.id))
+        voice_client.play(player, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
 
-    def toggle_next(self, server_id):
+    def toggle_next(self, server_id, ctx, error=None):
+        if error is not None:
+            asyncio.run_coroutine_threadsafe(ctx.send("Error playing that video"), self.bot.loop)
+            self.logger.error("error playing back video" + error)
+
         if self.currently_playing_map.keys().__contains__(server_id):
             del self.currently_playing_map[server_id]
         self.logger.debug("toggling next for", server_id)
@@ -93,6 +101,9 @@ class Voice(commands.Cog):
         video_queue = self.video_queue_map.get(server_id)
         if video_queue.__len__() > 0:
             asyncio.run_coroutine_threadsafe(self.audio_player_task(server_id=server_id), self.bot.loop)
+        else:
+            del self.video_queue_map[server_id]
+            asyncio.run_coroutine_threadsafe(ctx.guild.voice_client.disconnect(), self.bot.loop)
 
     @commands.command()
     async def play(self, ctx, *, video_or_search):
@@ -106,9 +117,9 @@ class Voice(commands.Cog):
 
         pattern = "^(?:https?:\\/\\/)?(?:www\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(?:embed\\/|v\\/|watch\\?v=" \
                   "|watch\\?.+&v=))((\\w|-){11})?$"
-        valid_url = re.search(pattern, video_or_search)
+        valid_video_url = re.search(pattern, video_or_search)
 
-        if not valid_url:
+        if not valid_video_url:
             await ctx.send("Searching for " + video_or_search)
             video_id, video_url, = search_for_video(video_or_search)
             video_title, video_length = get_youtube_details(video_id)
@@ -121,7 +132,6 @@ class Voice(commands.Cog):
                       video_length=video_length)
         player = await YTDLSource.from_url(video_url, loop=self.bot.loop, stream=True)
         pair = (video, player, voice_client, ctx)
-        self.logger.debug("putting ", video, " onto the queue ", pair)
         server_id = ctx.guild.id
         video_queue = self.video_queue_map.get(server_id)
         if video_queue is None:
@@ -130,7 +140,7 @@ class Voice(commands.Cog):
         video_queue.append(pair)
 
         if not voice_client.is_playing():
-            self.toggle_next(server_id=ctx.guild.id)
+            self.toggle_next(server_id=ctx.guild.id, ctx=ctx)
         else:
             await ctx.send('Queuing: {}'.format(video_title))
             await ctx.send(embed=discord.Embed(title=video_title, url=video_url))
