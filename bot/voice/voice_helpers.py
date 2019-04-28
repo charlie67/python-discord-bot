@@ -20,6 +20,50 @@ def get_video_id(url):
     return None
 
 
+def get_videos_on_playlist(url):
+    playlist_id = get_playlist_id(url)
+    playlist_videos_raw = get_videos_on_playlist(playlist_id, [])
+    return turn_raw_playlist_items_into_videos(playlist_videos_raw)
+
+
+def get_playlist_id(url):
+    query = urlparse(url)
+    id = query[4][5:39]
+    return id
+
+
+def get_videos_on_playlist(playlist_id, items: list, page_token=None, ):
+    youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
+    request = youtube.playlistItems().list(
+        part="snippet",
+        playlistId=playlist_id,
+        maxResults=50,
+        pageToken=page_token
+    )
+    response = request.execute()
+    items.extend(response.get('items'))
+
+    if response.get('nextPageToken'):
+        return get_videos_on_playlist(playlist_id, items, response.get('nextPageToken'))
+
+    return items
+
+
+def turn_raw_playlist_items_into_videos(playlist_items: list):
+    videos = []
+    for i in range(len(playlist_items)):
+        item = playlist_items.__getitem__(i)
+
+        video_id = item.get('snippet').get('resourceId').get('videoId')
+        video_url = "https://www.youube.com/watch?v=" + str(video_id)
+        video_title, video_length = get_youtube_details(video_id)
+        thumbnail_url = item.get('snippet').get('thumbnails').get('default').get('url')
+
+        videos.append(Video(video_url=video_url, video_id=video_id, video_title=video_title, thumbnail_url=thumbnail_url, video_length=video_length))
+
+    return videos
+
+
 def get_youtube_details(video_id):
     youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
     request = youtube.videos().list(
@@ -53,3 +97,17 @@ def search_for_video(search_terms):
     video_url = "https://www.youtube.com/watch?v=" + video_id
     return video_id, video_url
 
+
+class Video:
+    video_url: None
+    video_id: None
+    video_title: None
+    thumbnail_url: None
+    video_length: None
+
+    def __init__(self, video_url, video_id, video_title, thumbnail_url, video_length):
+        self.video_url = video_url
+        self.video_id = video_id
+        self.video_title = video_title
+        self.thumbnail_url = thumbnail_url
+        self.video_length = video_length

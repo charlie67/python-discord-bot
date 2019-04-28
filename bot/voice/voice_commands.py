@@ -9,7 +9,7 @@ import re
 import os
 import random
 import youtube_dl
-from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video
+from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video, get_playlist_id, Video
 from voice.YTDLSource import YTDLSource
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
@@ -106,7 +106,7 @@ class Voice(commands.Cog):
             asyncio.run_coroutine_threadsafe(ctx.guild.voice_client.disconnect(), self.bot.loop)
 
     @commands.command()
-    async def play(self, ctx, *, video_or_search):
+    async def play(self, ctx, *, video_or_search: str):
         if video_or_search is None:
             await ctx.send("Need to provide something to play")
             return
@@ -115,18 +115,28 @@ class Voice(commands.Cog):
         if voice_client is None:
             return
 
-        pattern = "^(?:https?:\\/\\/)?(?:www\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(?:embed\\/|v\\/|watch\\?v=" \
-                  "|watch\\?.+&v=))((\\w|-){11})?(&?.*)?$"
-        valid_video_url = re.search(pattern, video_or_search)
+        video_check_pattern = "^(?:https?:\\/\\/)?(?:www\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(" \
+                              "?:embed\\/|v\\/|watch\\?v=|watch\\?.+&v=))((\\w|-){11})?(&?.*)?$"
+        valid_video_url = re.search(video_check_pattern, video_or_search)
 
-        if not valid_video_url:
-            await ctx.send("Searching for " + video_or_search)
-            video_id, video_url, = search_for_video(video_or_search)
-            video_title, video_length = get_youtube_details(video_id)
-        else:
+        playlist_check_pattern = "'^(?:https?:\\/\\/)?(?:www\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(" \
+                                 "?:embed\\/|v\\/|playlist\\?|list=\\?.+&v=))((\\w|-){34})?(&?.*)?$' "
+        valid_playlist_url = re.search(pattern=playlist_check_pattern, string=video_or_search)
+
+        if valid_video_url:
             video_id = get_video_id(video_or_search)
             video_title, video_length = get_youtube_details(video_id)
             video_url = video_or_search
+        elif valid_playlist_url:
+            await ctx.send("Queuing items on playlist")
+            playlist_id = get_playlist_id(video_or_search)
+            if playlist_id is None:
+                return await ctx.send("Can't get videos from the playlist")
+            return await ctx.send("need to queue the items but I can't do that yet")
+        else:
+            await ctx.send("Searching for " + video_or_search)
+            video_id, video_url, = search_for_video(video_or_search)
+            video_title, video_length = get_youtube_details(video_id)
 
         video = Video(video_url=video_url, video_id=video_id, thumbnail_url=None, video_title=video_title,
                       video_length=video_length)
@@ -255,17 +265,3 @@ class Voice(commands.Cog):
                                       executable=FFMPEG_PATH)
         voice_client.play(audio_source)
 
-
-class Video:
-    video_url: None
-    video_id: None
-    video_title: None
-    thumbnail_url: None
-    video_length: None
-
-    def __init__(self, video_url, video_id, video_title, thumbnail_url, video_length):
-        self.video_url = video_url
-        self.video_id = video_id
-        self.video_title = video_title
-        self.thumbnail_url = thumbnail_url
-        self.video_length = video_length
