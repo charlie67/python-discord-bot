@@ -22,7 +22,7 @@ def get_video_id(url):
 
 def get_videos_on_playlist(url):
     playlist_id = get_playlist_id(url)
-    playlist_videos_raw = get_videos_on_playlist(playlist_id, [])
+    playlist_videos_raw = get_youtube_video_items_on_playlist(playlist_id, [])
     return turn_raw_playlist_items_into_videos(playlist_videos_raw)
 
 
@@ -32,7 +32,7 @@ def get_playlist_id(url):
     return id
 
 
-def get_videos_on_playlist(playlist_id, items: list, page_token=None, ):
+def get_youtube_video_items_on_playlist(playlist_id, items: list, page_token=None, ):
     youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
     request = youtube.playlistItems().list(
         part="snippet",
@@ -44,7 +44,7 @@ def get_videos_on_playlist(playlist_id, items: list, page_token=None, ):
     items.extend(response.get('items'))
 
     if response.get('nextPageToken'):
-        return get_videos_on_playlist(playlist_id, items, response.get('nextPageToken'))
+        return get_youtube_video_items_on_playlist(playlist_id, items, response.get('nextPageToken'))
 
     return items
 
