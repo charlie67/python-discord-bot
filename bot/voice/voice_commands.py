@@ -9,7 +9,7 @@ import re
 import os
 import random
 import youtube_dl
-from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video, get_playlist_id, Video
+from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video, get_playlist_id, Video, get_videos_on_playlist
 from voice.YTDLSource import YTDLSource
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
@@ -106,8 +106,8 @@ class Voice(commands.Cog):
             asyncio.run_coroutine_threadsafe(ctx.guild.voice_client.disconnect(), self.bot.loop)
 
     @commands.command()
-    async def play(self, ctx, *, video_or_search: str):
-        if video_or_search is None:
+    async def play(self, ctx, *, search_or_url: str):
+        if search_or_url is None:
             await ctx.send("Need to provide something to play")
             return
 
@@ -117,25 +117,38 @@ class Voice(commands.Cog):
 
         video_check_pattern = "^(?:https?:\\/\\/)?(?:www\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(" \
                               "?:embed\\/|v\\/|watch\\?v=|watch\\?.+&v=))((\\w|-){11})?(&?.*)?$"
-        valid_video_url = re.search(video_check_pattern, video_or_search)
+        valid_video_url = re.search(video_check_pattern, search_or_url)
 
-        playlist_check_pattern = "'^(?:https?:\\/\\/)?(?:www\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(" \
-                                 "?:embed\\/|v\\/|playlist\\?|list=\\?.+&v=))((\\w|-){34})?(&?.*)?$' "
-        valid_playlist_url = re.search(pattern=playlist_check_pattern, string=video_or_search)
+        playlist_check_pattern = "^https?:\\/\\/(www.youtube.com|youtube.com)\\/playlist(.*)$"
+        valid_playlist_url = re.search(pattern=playlist_check_pattern, string=search_or_url)
 
         if valid_video_url:
-            video_id = get_video_id(video_or_search)
+            video_id = get_video_id(search_or_url)
             video_title, video_length = get_youtube_details(video_id)
-            video_url = video_or_search
+            video_url = search_or_url
         elif valid_playlist_url:
             await ctx.send("Queuing items on playlist")
-            playlist_id = get_playlist_id(video_or_search)
+            playlist_id = get_playlist_id(search_or_url)
             if playlist_id is None:
                 return await ctx.send("Can't get videos from the playlist")
-            return await ctx.send("need to queue the items but I can't do that yet")
+            playlist_videos: list = await get_videos_on_playlist(url=search_or_url, ctx=ctx)
+            for i in playlist_videos:
+                video: Video = playlist_videos.__getitem__(i)
+                player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
+                pair = (video, player, voice_client, ctx)
+                server_id = ctx.guild.id
+                video_queue = self.video_queue_map.get(server_id)
+                if video_queue is None:
+                    video_queue = list()
+                    self.video_queue_map[server_id] = video_queue
+                video_queue.append(pair)
+
+            if not voice_client.is_playing():
+                self.toggle_next(server_id=ctx.guild.id, ctx=ctx)
+
         else:
-            await ctx.send("Searching for " + video_or_search)
-            video_id, video_url, = search_for_video(video_or_search)
+            await ctx.send("Searching for " + search_or_url)
+            video_id, video_url, = search_for_video(search_or_url)
             video_title, video_length = get_youtube_details(video_id)
 
         video = Video(video_url=video_url, video_id=video_id, thumbnail_url=None, video_title=video_title,

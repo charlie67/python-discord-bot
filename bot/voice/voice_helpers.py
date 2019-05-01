@@ -2,6 +2,7 @@ from urllib.parse import urlparse, parse_qs
 import config
 import googleapiclient.discovery
 import html.parser as htmlparser
+import discord
 
 api_service_name = "youtube"
 api_version = "v3"
@@ -20,10 +21,10 @@ def get_video_id(url):
     return None
 
 
-def get_videos_on_playlist(url):
+async def get_videos_on_playlist(url, ctx):
     playlist_id = get_playlist_id(url)
     playlist_videos_raw = get_youtube_video_items_on_playlist(playlist_id, [])
-    return turn_raw_playlist_items_into_videos(playlist_videos_raw)
+    return await turn_raw_playlist_items_into_videos(playlist_videos_raw, ctx)
 
 
 def get_playlist_id(url):
@@ -49,7 +50,7 @@ def get_youtube_video_items_on_playlist(playlist_id, items: list, page_token=Non
     return items
 
 
-def turn_raw_playlist_items_into_videos(playlist_items: list):
+async def turn_raw_playlist_items_into_videos(playlist_items: list, ctx):
     videos = []
     for i in range(len(playlist_items)):
         item = playlist_items.__getitem__(i)
@@ -59,7 +60,11 @@ def turn_raw_playlist_items_into_videos(playlist_items: list):
         video_title, video_length = get_youtube_details(video_id)
         thumbnail_url = item.get('snippet').get('thumbnails').get('default').get('url')
 
-        videos.append(Video(video_url=video_url, video_id=video_id, video_title=video_title, thumbnail_url=thumbnail_url, video_length=video_length))
+        videos.append(Video(video_url=video_url, video_id=video_id, video_title=video_title,
+                            thumbnail_url=thumbnail_url, video_length=video_length))
+
+        await ctx.send('Queuing: {}'.format(video_title))
+        await ctx.send(embed=discord.Embed(title=video_title, url=video_url))
 
     return videos
 
