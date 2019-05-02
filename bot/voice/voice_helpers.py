@@ -35,7 +35,7 @@ def get_playlist_id(url):
 def get_youtube_video_items_on_playlist(playlist_id, items: list, page_token=None, ):
     youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
     request = youtube.playlistItems().list(
-        part="snippet",
+        part="snippet,contentDetails",
         playlistId=playlist_id,
         maxResults=50,
         pageToken=page_token
@@ -106,6 +106,8 @@ class Video:
     video_title: None
     thumbnail_url: None
     video_length: None
+    type: None
+    filename: None
 
     def __init__(self, video_url, video_id, video_title, thumbnail_url, video_length):
         self.video_url = video_url

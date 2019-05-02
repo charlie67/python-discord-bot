@@ -6,8 +6,6 @@ import discord
 from discord.ext import commands
 from discord import FFmpegPCMAudio
 import re
-import os
-import random
 import youtube_dl
 from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video, get_playlist_id, Video, get_videos_on_playlist
 from voice.YTDLSource import YTDLSource
@@ -71,7 +69,7 @@ class Voice(commands.Cog):
         voice_client: discord.VoiceClient = guild.voice_client
         if voice_client is not None:
             await voice_client.disconnect()
-            del self.currently_playing_map[ctx.guild.id]
+            # del self.currently_playing_map[ctx.guild.id]
             del self.video_queue_map[ctx.guild.id]
         else:
             await ctx.send("... What are you actually expecting me to do??")
@@ -82,21 +80,25 @@ class Voice(commands.Cog):
         video_queue.__delitem__(0)
         video = current[0]
         player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
-        voice_client = current[1]
+        voice_client: discord.voice_client = current[1]
+
+        if not voice_client.is_connected():
+            return
+
         ctx = current[2]
         await ctx.send('Now playing: {}'.format(video.video_title))
         await ctx.send(embed=discord.Embed(title=video.video_title, url=video.video_url))
         self.currently_playing_map[ctx.guild.id] = video
         voice_client.play(player, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
 
-    def toggle_next(self, server_id, ctx, error=None):
+    def toggle_next(self, server_id: int, ctx, error=None):
         if error is not None:
             asyncio.run_coroutine_threadsafe(ctx.send("Error playing that video"), self.bot.loop)
             self.logger.error("error playing back video" + error)
 
         if self.currently_playing_map.keys().__contains__(server_id):
             del self.currently_playing_map[server_id]
-        self.logger.debug("toggling next for", server_id)
+        self.logger.debug("toggling next for {}".format(server_id.__str__()))
 
         video_queue = self.video_queue_map.get(server_id)
         if video_queue.__len__() > 0:
@@ -179,7 +181,7 @@ class Voice(commands.Cog):
         if voice_client is not None:
             if voice_client.is_playing() or voice_client.is_paused():
                 voice_client.stop()
-                self.toggle_next(server_id=guild.id)
+                self.toggle_next(server_id=guild.id, ctx=ctx)
 
                 await ctx.send("Skipping")
             else:
@@ -273,15 +275,16 @@ class Voice(commands.Cog):
 
     @commands.command()
     async def dishwasher(self, ctx):
-        voice_client = await get_or_create_audio_source(ctx)
-        if voice_client is None:
-            return
-
-        if voice_client.is_playing():
-            await ctx.send("I'm already playing be patient will you")
-            return
-
-        audio_source = FFmpegPCMAudio("/bot/assets/audio/dishwasher.mp3",
-                                      executable=FFMPEG_PATH)
-        voice_client.play(audio_source)
+        return
+        # voice_client = await get_or_create_audio_source(ctx)
+        # if voice_client is None:
+        #     return
+        #
+        # if voice_client.is_playing():
+        #     await ctx.send("I'm already playing be patient will you")
+        #     return
+        #
+        # audio_source = FFmpegPCMAudio("/bot/assets/audio/dishwasher.mp3",
+        #                               executable=FFMPEG_PATH)
+        # voice_client.play(audio_source)
 
