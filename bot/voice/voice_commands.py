@@ -189,24 +189,25 @@ class Voice(commands.Cog):
 
     @commands.command()
     async def playfile(self, ctx, file_name: str = None):
-        voice_client = await get_or_create_audio_source(ctx)
-        if voice_client is None:
-            return
-
-        if voice_client.is_playing():
-            await ctx.send("I'm already playing be patient will you")
-            return
-
-        if file_name is None:
-            file_list = os.listdir("/bot/assets/audio")
-            file_name = random.choice(file_list)
-
-        if not file_name.endswith(".mp3"):
-            file_name = file_name + ".mp3"
-
-        audio_source = FFmpegPCMAudio("/bot/assets/audio/" + file_name,
-                                      executable=FFMPEG_PATH)
-        voice_client.play(audio_source)
+        return
+        # voice_client = await get_or_create_audio_source(ctx)
+        # if voice_client is None:
+        #     return
+        #
+        # if voice_client.is_playing():
+        #     await ctx.send("I'm already playing be patient will you")
+        #     return
+        #
+        # if file_name is None:
+        #     file_list = os.listdir("/bot/assets/audio")
+        #     file_name = random.choice(file_list)
+        #
+        # if not file_name.endswith(".mp3"):
+        #     file_name = file_name + ".mp3"
+        #
+        # audio_source = FFmpegPCMAudio("/bot/assets/audio/" + file_name,
+        #                               executable=FFMPEG_PATH)
+        # voice_client.play(audio_source)
 
     @commands.command(aliases=['stopplaying'])
     async def stop(self, ctx):
