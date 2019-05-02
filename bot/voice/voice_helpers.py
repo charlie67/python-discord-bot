@@ -2,7 +2,6 @@ from urllib.parse import urlparse, parse_qs
 import config
 import googleapiclient.discovery
 import html.parser as htmlparser
-import discord
 
 api_service_name = "youtube"
 api_version = "v3"
@@ -21,10 +20,10 @@ def get_video_id(url):
     return None
 
 
-async def get_videos_on_playlist(url, ctx):
+def get_videos_on_playlist(url):
     playlist_id = get_playlist_id(url)
     playlist_videos_raw = get_youtube_video_items_on_playlist(playlist_id, [])
-    return await turn_raw_playlist_items_into_videos(playlist_videos_raw, ctx)
+    return turn_raw_playlist_items_into_videos(playlist_videos_raw)
 
 
 def get_playlist_id(url):
@@ -50,21 +49,19 @@ def get_youtube_video_items_on_playlist(playlist_id, items: list, page_token=Non
     return items
 
 
-async def turn_raw_playlist_items_into_videos(playlist_items: list, ctx):
+def turn_raw_playlist_items_into_videos(playlist_items: list):
     videos = []
     for i in range(len(playlist_items)):
         item = playlist_items.__getitem__(i)
 
         video_id = item.get('snippet').get('resourceId').get('videoId')
-        video_url = "https://www.youube.com/watch?v=" + str(video_id)
-        video_title, video_length = get_youtube_details(video_id)
+        video_url = "https://www.youtube.com/watch?v=" + str(video_id)
+        video_title = item.get('snippet').get('title')
+        video_length = 0
         thumbnail_url = item.get('snippet').get('thumbnails').get('default').get('url')
 
         videos.append(Video(video_url=video_url, video_id=video_id, video_title=video_title,
                             thumbnail_url=thumbnail_url, video_length=video_length))
-
-        await ctx.send('Queuing: {}'.format(video_title))
-        await ctx.send(embed=discord.Embed(title=video_title, url=video_url))
 
     return videos
 
@@ -72,7 +69,7 @@ async def turn_raw_playlist_items_into_videos(playlist_items: list, ctx):
 def get_youtube_details(video_id):
     youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
     request = youtube.videos().list(
-        part="snippet,contentDetails,statistics",
+        part="snippet,contentDetails",
         id=video_id
     )
     response = request.execute()

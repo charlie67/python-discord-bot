@@ -81,9 +81,9 @@ class Voice(commands.Cog):
         current = video_queue.__getitem__(0)
         video_queue.__delitem__(0)
         video = current[0]
-        player = current[1]
-        voice_client = current[2]
-        ctx = current[3]
+        player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
+        voice_client = current[1]
+        ctx = current[2]
         await ctx.send('Now playing: {}'.format(video.video_title))
         await ctx.send(embed=discord.Embed(title=video.video_title, url=video.video_url))
         self.currently_playing_map[ctx.guild.id] = video
@@ -131,11 +131,10 @@ class Voice(commands.Cog):
             playlist_id = get_playlist_id(search_or_url)
             if playlist_id is None:
                 return await ctx.send("Can't get videos from the playlist")
-            playlist_videos: list = await get_videos_on_playlist(url=search_or_url, ctx=ctx)
-            for i in playlist_videos:
-                video: Video = playlist_videos.__getitem__(i)
-                player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
-                pair = (video, player, voice_client, ctx)
+            playlist_videos: list = get_videos_on_playlist(url=search_or_url)
+            for video in playlist_videos:
+                # video: Video = playlist_videos.__getitem__(i)
+                pair = (video, voice_client, ctx)
                 server_id = ctx.guild.id
                 video_queue = self.video_queue_map.get(server_id)
                 if video_queue is None:
@@ -143,8 +142,13 @@ class Voice(commands.Cog):
                     self.video_queue_map[server_id] = video_queue
                 video_queue.append(pair)
 
+            await ctx.send("Queued {} items".format(playlist_videos.__len__().__str__()))
+            # await self.queue(ctx=ctx)
+
             if not voice_client.is_playing():
                 self.toggle_next(server_id=ctx.guild.id, ctx=ctx)
+
+            return
 
         else:
             await ctx.send("Searching for " + search_or_url)
@@ -153,8 +157,7 @@ class Voice(commands.Cog):
 
         video = Video(video_url=video_url, video_id=video_id, thumbnail_url=None, video_title=video_title,
                       video_length=video_length)
-        player = await YTDLSource.from_url(video_url, loop=self.bot.loop, stream=True)
-        pair = (video, player, voice_client, ctx)
+        pair = (video, voice_client, ctx)
         server_id = ctx.guild.id
         video_queue = self.video_queue_map.get(server_id)
         if video_queue is None:
@@ -249,6 +252,9 @@ class Voice(commands.Cog):
             video_list = self.video_queue_map[server_id]
             counter = 0
             while counter < video_list.__len__():
+                if counter >= 5:
+                    await ctx.send("And {} other songs".format(video_list.__len__() - 5))
+                    break
                 item = video_list.__getitem__(counter)
                 video = item[0]
                 item_counter = counter + 1
