@@ -6,8 +6,11 @@ import discord
 from discord.ext import commands
 from discord import FFmpegPCMAudio
 import re
+import os
+import random
 import youtube_dl
-from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video, get_playlist_id, Video, get_videos_on_playlist
+from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video, get_playlist_id, Video,\
+    get_videos_on_playlist
 from voice.YTDLSource import YTDLSource
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
@@ -78,14 +81,23 @@ class Voice(commands.Cog):
         video_queue = self.video_queue_map.get(server_id)
         current = video_queue.__getitem__(0)
         video_queue.__delitem__(0)
+
         video = current[0]
-        player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
         voice_client: discord.voice_client = current[1]
+        ctx = current[2]
 
         if not voice_client.is_connected():
             return
 
-        ctx = current[2]
+        if video.file:
+            audio_source = FFmpegPCMAudio("/bot/assets/audio/" + video.filename,
+                                          executable=FFMPEG_PATH)
+            await ctx.send('Now playing: {}'.format(video.filename))
+            voice_client.play(audio_source, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
+            return
+
+        player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
+
         await ctx.send('Now playing: {}'.format(video.video_title))
         await ctx.send(embed=discord.Embed(title=video.video_title, url=video.video_url))
         self.currently_playing_map[ctx.guild.id] = video
@@ -191,25 +203,31 @@ class Voice(commands.Cog):
 
     @commands.command()
     async def playfile(self, ctx, file_name: str = None):
-        return
-        # voice_client = await get_or_create_audio_source(ctx)
-        # if voice_client is None:
-        #     return
-        #
-        # if voice_client.is_playing():
-        #     await ctx.send("I'm already playing be patient will you")
-        #     return
-        #
-        # if file_name is None:
-        #     file_list = os.listdir("/bot/assets/audio")
-        #     file_name = random.choice(file_list)
-        #
-        # if not file_name.endswith(".mp3"):
-        #     file_name = file_name + ".mp3"
-        #
-        # audio_source = FFmpegPCMAudio("/bot/assets/audio/" + file_name,
-        #                               executable=FFMPEG_PATH)
-        # voice_client.play(audio_source)
+        voice_client = await get_or_create_audio_source(ctx)
+        if voice_client is None:
+            return
+
+        if file_name is None:
+            file_list = os.listdir("/bot/assets/audio")
+            file_name = random.choice(file_list)
+
+        if not file_name.endswith(".mp3"):
+            file_name = file_name + ".mp3"
+
+        video = Video(file_name)
+
+        pair = {video, voice_client, ctx}
+        server_id = ctx.guild.id
+        video_queue = self.video_queue_map.get(server_id)
+        if video_queue is None:
+            video_queue = list()
+            self.video_queue_map[server_id] = video_queue
+        video_queue.append(pair)
+
+        if not voice_client.is_playing():
+            self.toggle_next(server_id=ctx.guild.id, ctx=ctx)
+        else:
+            await ctx.send('Queuing: {}'.format(file_name))
 
     @commands.command(aliases=['stopplaying'])
     async def stop(self, ctx):

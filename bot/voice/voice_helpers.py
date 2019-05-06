@@ -101,13 +101,14 @@ def search_for_video(search_terms):
 
 
 class Video:
-    video_url: None
-    video_id: None
-    video_title: None
-    thumbnail_url: None
-    video_length: None
-    type: None
-    filename: None
+    video_url: str
+    video_id: str
+    video_title: str
+    thumbnail_url: str
+    video_length: str
+    file: bool
+    youtube: bool
+    filename: str
 
     def __init__(self, video_url, video_id, video_title, thumbnail_url, video_length):
         self.video_url = video_url
@@ -115,3 +116,8 @@ class Video:
         self.video_title = video_title
         self.thumbnail_url = thumbnail_url
         self.video_length = video_length
+        self.youtube = True
+
+    def __init__(self, filename):
+        self.filename = filename
+        self.file = True
