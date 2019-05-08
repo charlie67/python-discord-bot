@@ -269,6 +269,8 @@ class Voice(commands.Cog):
         server_id = ctx.guild.id
         if not self.video_queue_map.keys().__contains__(server_id):
             return await ctx.send("Queue is empty")
+        elif self.video_queue_map[server_id].__len__() == 0:
+            return await ctx.send("Queue is empty")
         else:
             video_list = self.video_queue_map[server_id]
             counter = 0

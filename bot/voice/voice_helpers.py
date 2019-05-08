@@ -106,18 +106,18 @@ class Video:
     video_title: str
     thumbnail_url: str
     video_length: str
-    file: bool
-    youtube: bool
+    file: bool = False
+    youtube: bool = False
     filename: str
 
-    def __init__(self, video_url, video_id, video_title, thumbnail_url, video_length):
+    def __init__(self, video_url=None, video_id=None, video_title=None, thumbnail_url=None, video_length=None, filename=None):
         self.video_url = video_url
         self.video_id = video_id
         self.video_title = video_title
         self.thumbnail_url = thumbnail_url
         self.video_length = video_length
-        self.youtube = True
-
-    def __init__(self, filename):
         self.filename = filename
-        self.file = True
+        if filename is not None:
+            self.file = True
+        else:
+            self.youtube = True
