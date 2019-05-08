@@ -72,8 +72,11 @@ class Voice(commands.Cog):
         voice_client: discord.VoiceClient = guild.voice_client
         if voice_client is not None:
             await voice_client.disconnect()
-            # del self.currently_playing_map[ctx.guild.id]
-            del self.video_queue_map[ctx.guild.id]
+
+            server_id = ctx.guild.id
+
+            if self.video_queue_map.keys().__contains__(server_id):
+                del self.video_queue_map[server_id]
         else:
             await ctx.send("... What are you actually expecting me to do??")
 
@@ -157,7 +160,6 @@ class Voice(commands.Cog):
                 video_queue.append(pair)
 
             await ctx.send("Queued {} items".format(playlist_videos.__len__().__str__()))
-            # await self.queue(ctx=ctx)
 
             if not voice_client.is_playing():
                 self.toggle_next(server_id=ctx.guild.id, ctx=ctx)
@@ -192,10 +194,10 @@ class Voice(commands.Cog):
         voice_client: discord.VoiceClient = guild.voice_client
         if voice_client is not None:
             if voice_client.is_playing() or voice_client.is_paused():
-                voice_client.stop()
-                self.toggle_next(server_id=guild.id, ctx=ctx)
-
                 await ctx.send("Skipping")
+                voice_client.stop()
+                # self.toggle_next(server_id=guild.id, ctx=ctx)
+
             else:
                 return await ctx.send("Not currently playing")
         else:
@@ -267,9 +269,7 @@ class Voice(commands.Cog):
     @commands.command()
     async def queue(self, ctx):
         server_id = ctx.guild.id
-        if not self.video_queue_map.keys().__contains__(server_id):
-            return await ctx.send("Queue is empty")
-        elif self.video_queue_map[server_id].__len__() == 0:
+        if not self.video_queue_map.keys().__contains__(server_id) or self.video_queue_map[server_id].__len__() == 0:
             return await ctx.send("Queue is empty")
         else:
             video_list = self.video_queue_map[server_id]
