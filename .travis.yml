@@ -1,4 +1,7 @@
 language: python
+cache: pip
 services:
   - docker
-script: "./build.sh"
+script:
+    - "./build.sh"
+    - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; "./deploy.sh"; fi
