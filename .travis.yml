@@ -4,4 +4,4 @@ services:
   - docker
 script:
     - "./build.sh"
-    - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; "./deploy.sh"; fi
+    - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; "./deploy.sh" fi
