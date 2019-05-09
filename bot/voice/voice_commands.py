@@ -150,7 +150,6 @@ class Voice(commands.Cog):
                 return await ctx.send("Can't get videos from the playlist")
             playlist_videos: list = get_videos_on_playlist(url=search_or_url)
             for video in playlist_videos:
-                # video: Video = playlist_videos.__getitem__(i)
                 pair = (video, voice_client, ctx)
                 server_id = ctx.guild.id
                 video_queue = self.video_queue_map.get(server_id)
@@ -196,7 +195,6 @@ class Voice(commands.Cog):
             if voice_client.is_playing() or voice_client.is_paused():
                 await ctx.send("Skipping")
                 voice_client.stop()
-                # self.toggle_next(server_id=guild.id, ctx=ctx)
 
             else:
                 return await ctx.send("Not currently playing")
@@ -216,9 +214,9 @@ class Voice(commands.Cog):
         if not file_name.endswith(".mp3"):
             file_name = file_name + ".mp3"
 
-        video = Video(file_name)
+        video = Video(filename=file_name)
 
-        pair = {video, voice_client, ctx}
+        pair = (video, voice_client, ctx)
         server_id = ctx.guild.id
         video_queue = self.video_queue_map.get(server_id)
         if video_queue is None:
