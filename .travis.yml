@@ -4,4 +4,3 @@ services:
   - docker
 script:
     - "./build.sh"
-    - "./deploy.sh"
