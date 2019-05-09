@@ -120,7 +120,7 @@ class Voice(commands.Cog):
             asyncio.run_coroutine_threadsafe(self.audio_player_task(server_id=server_id), self.bot.loop)
         else:
             del self.video_queue_map[server_id]
-            asyncio.run_coroutine_threadsafe(ctx.guild.voice_client.disconnect(), self.bot.loop)
+        #     asyncio.run_coroutine_threadsafe(ctx.guild.voice_client.disconnect(), self.bot.loop)
 
     @commands.command()
     async def play(self, ctx, *, search_or_url: str):
@@ -272,15 +272,27 @@ class Voice(commands.Cog):
         else:
             video_list = self.video_queue_map[server_id]
             counter = 0
+            # instead of printing out eeach item one after the other add them to a list and print them all at the end
+            # otherwise get chat rate limited byt discord
+            string_to_send = ""
+            too_many_item_string = None
             while counter < video_list.__len__():
                 if counter >= 5:
-                    await ctx.send("And {} other songs".format(video_list.__len__() - 5))
+                    too_many_item_string = ("And {} other songs".format(video_list.__len__() - 5))
                     break
                 item = video_list.__getitem__(counter)
                 video = item[0]
                 item_counter = counter + 1
-                await ctx.send(item_counter.__str__() + ". " + video.video_title)
+                if video.file:
+                    string_to_send += ("{}. {}".format(item_counter, video.filename))
+                else:
+                    string_to_send += ("{}. {}".format(item_counter, video.video_title))
                 counter += 1
+                string_to_send += "\n"
+
+            await ctx.send(embed=discord.Embed(title=string_to_send))
+            if too_many_item_string is not None:
+                await ctx.send(too_many_item_string)
 
     @commands.command(aliases=['np'])
     async def nowplaying(self, ctx):
