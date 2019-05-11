@@ -141,8 +141,12 @@ class Voice(commands.Cog):
 
         if valid_video_url:
             video_id = get_video_id(search_or_url)
-            video_title, video_length = get_youtube_details(video_id)
             video_url = search_or_url
+            video_data = await YTDLSource.get_video_info(video_url)
+            video_title = video_data[0]
+            video_length = video_data[1]
+            thumbnail_url = video_data[2]
+
         elif valid_playlist_url:
             await ctx.send("Queuing items on playlist")
             playlist_id = get_playlist_id(search_or_url)
@@ -168,9 +172,12 @@ class Voice(commands.Cog):
         else:
             await ctx.send("Searching for " + search_or_url)
             video_id, video_url, = search_for_video(search_or_url)
-            video_title, video_length = get_youtube_details(video_id)
+            video_data = await YTDLSource.get_video_info(video_url)
+            video_title = video_data[0]
+            video_length = video_data[1]
+            thumbnail_url = video_data[2]
 
-        video = Video(video_url=video_url, video_id=video_id, thumbnail_url=None, video_title=video_title,
+        video = Video(video_url=video_url, video_id=video_id, thumbnail_url=thumbnail_url, video_title=video_title,
                       video_length=video_length)
         pair = (video, voice_client, ctx)
         server_id = ctx.guild.id
