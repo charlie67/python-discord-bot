@@ -246,7 +246,7 @@ class Voice(commands.Cog):
         if voice_client is not None:
             if voice_client.is_playing() or voice_client.is_paused():
                 voice_client.stop()
-                del self.currently_playing_map[ctx.server.id]
+                del self.currently_playing_map[guild.id]
                 await ctx.send("Stopping")
         else:
             await ctx.send("Nothing to stop")
