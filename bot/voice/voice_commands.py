@@ -172,6 +172,8 @@ class Voice(commands.Cog):
         else:
             await ctx.send("Searching for " + search_or_url)
             video_id, video_url, = search_for_video(search_or_url)
+            if video_id is None:
+                return await ctx.send("Cannot find a video for {}".format(search_or_url))
             video_data = await YTDLSource.get_video_info(video_url)
             video_title = video_data[0]
             video_length = video_data[1]

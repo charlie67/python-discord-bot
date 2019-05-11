@@ -94,10 +94,13 @@ def search_for_video(search_terms):
         videoCategoryId="10"
     )
     response = request.execute()
-    video = response.get('items')[0]
-    video_id = video.get('id').get('videoId')
-    video_url = "https://www.youtube.com/watch?v=" + video_id
-    return video_id, video_url
+    try:
+        video = response.get('items')[0]
+        video_id = video.get('id').get('videoId')
+        video_url = "https://www.youtube.com/watch?v=" + video_id
+        return video_id, video_url
+    except IndexError:
+        return None, None
 
 
 class Video:
