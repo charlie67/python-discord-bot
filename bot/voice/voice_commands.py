@@ -238,19 +238,6 @@ class Voice(commands.Cog):
         else:
             await ctx.send('Queuing: {}'.format(file_name))
 
-    @commands.command(aliases=['stopplaying'])
-    async def stop(self, ctx):
-        guild = ctx.guild
-
-        voice_client: discord.VoiceClient = guild.voice_client
-        if voice_client is not None:
-            if voice_client.is_playing() or voice_client.is_paused():
-                voice_client.stop()
-                del self.currently_playing_map[guild.id]
-                await ctx.send("Stopping")
-        else:
-            await ctx.send("Nothing to stop")
-
     @commands.command()
     async def pause(self, ctx):
         guild = ctx.guild
