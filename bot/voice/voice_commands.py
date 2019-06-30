@@ -134,7 +134,7 @@ class Voice(commands.Cog):
                 thumbnail_url = video_data.result()[2]
 
                 video = Video(video_url=video_url, video_id=video_id, thumbnail_url=thumbnail_url,
-                              video_title=video_title, video_length=video_length)
+                              video_title=video_title, video_length=video_length, autoplay=True)
 
                 pair = (video, ctx.guild.voice_client, ctx)
                 server_id = ctx.guild.id

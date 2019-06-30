@@ -116,7 +116,7 @@ class Video:
     play_type: str
 
     def __init__(self, video_url=None, video_id=None, video_title=None, thumbnail_url=None, video_length=None,
-                 filename=None, autoplay=None):
+                 filename=None, autoplay=False):
         self.video_url = video_url
         self.video_id = video_id
         self.video_title = video_title
