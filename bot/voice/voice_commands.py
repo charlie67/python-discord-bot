@@ -9,8 +9,8 @@ import re
 import os
 import random
 import youtube_dl
-from voice.voice_helpers import get_video_id, get_youtube_details, search_for_video, get_playlist_id, Video,\
-    get_videos_on_playlist
+from voice.voice_helpers import get_video_id, search_for_video, get_playlist_id, Video,\
+    get_videos_on_playlist, get_youtube_autoplay_video
 from voice.YTDLSource import YTDLSource
 
 FFMPEG_PATH = '/usr/bin/ffmpeg'
@@ -81,11 +81,12 @@ class Voice(commands.Cog):
             await ctx.send("... What are you actually expecting me to do??")
 
     async def audio_player_task(self, server_id):
+        logging.debug("Playing next song in queue for server {}".format(server_id))
         video_queue = self.video_queue_map.get(server_id)
         current = video_queue.__getitem__(0)
         video_queue.__delitem__(0)
 
-        video = current[0]
+        video: Video = current[0]
         voice_client: discord.voice_client = current[1]
         ctx = current[2]
 
@@ -95,32 +96,58 @@ class Voice(commands.Cog):
         if video.file:
             audio_source = FFmpegPCMAudio("/bot/assets/audio/" + video.filename,
                                           executable=FFMPEG_PATH)
-            await ctx.send('Now playing: {}'.format(video.filename))
+            await ctx.send('{}: {}'.format(video.play_type, video.filename))
             voice_client.play(audio_source, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
             return
 
         player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
 
-        await ctx.send('Now playing: {}'.format(video.video_title))
+        await ctx.send('{}: {}'.format(video.play_type, video.video_title))
         await ctx.send(embed=discord.Embed(title=video.video_title, url=video.video_url))
         self.currently_playing_map[ctx.guild.id] = video
         voice_client.play(player, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
 
-    def toggle_next(self, server_id: int, ctx, error=None):
+    def toggle_next(self, server_id: int, ctx: discord.message, error=None):
         if error is not None:
             asyncio.run_coroutine_threadsafe(ctx.send("Error playing that video"), self.bot.loop)
             self.logger.error("error playing back video" + error)
 
+        last_playing_video = None
+
         if self.currently_playing_map.keys().__contains__(server_id):
+            last_playing_video = self.currently_playing_map[ctx.guild.id]
             del self.currently_playing_map[server_id]
         self.logger.debug("toggling next for {}".format(server_id.__str__()))
 
         video_queue = self.video_queue_map.get(server_id)
-        if video_queue.__len__() > 0:
-            asyncio.run_coroutine_threadsafe(self.audio_player_task(server_id=server_id), self.bot.loop)
-        else:
-            del self.video_queue_map[server_id]
-        #     asyncio.run_coroutine_threadsafe(ctx.guild.voice_client.disconnect(), self.bot.loop)
+        if video_queue.__len__() == 0:
+            logging.debug("Video queue is empty so getting a video to autoplay from the previous video")
+            if last_playing_video is not None and last_playing_video.youtube:
+                video_id, video_url = get_youtube_autoplay_video(last_playing_video.video_id)
+
+                if video_id is None:
+                    logging.error("Attempted to autoplay a video but couldn't find anything to play")
+                    return
+                video_data = asyncio.run_coroutine_threadsafe(YTDLSource.get_video_info(video_url), self.bot.loop)
+                video_title = video_data.result()[0]
+                video_length = video_data.result()[1]
+                thumbnail_url = video_data.result()[2]
+
+                video = Video(video_url=video_url, video_id=video_id, thumbnail_url=thumbnail_url,
+                              video_title=video_title, video_length=video_length)
+
+                pair = (video, ctx.guild.voice_client, ctx)
+                server_id = ctx.guild.id
+                video_queue = self.video_queue_map.get(server_id)
+                if video_queue is None:
+                    video_queue = list()
+                    self.video_queue_map[server_id] = video_queue
+                video_queue.append(pair)
+                asyncio.run_coroutine_threadsafe(ctx.send("Auto playing {}".format(video.video_title)), self.bot.loop)
+                asyncio.run_coroutine_threadsafe(ctx.send(embed=discord.Embed(title=video_title, url=video_url)),
+                                                 self.bot.loop)
+
+        asyncio.run_coroutine_threadsafe(self.audio_player_task(server_id=server_id), self.bot.loop)
 
     @commands.command()
     async def play(self, ctx, *, search_or_url: str):
@@ -171,13 +198,10 @@ class Voice(commands.Cog):
 
         else:
             await ctx.send("Searching for " + search_or_url)
-            video_id, video_url, = search_for_video(search_or_url)
+            video_id, video_url = search_for_video(search_or_url)
             if video_id is None:
                 return await ctx.send("Cannot find a video for {}".format(search_or_url))
-            video_data = await YTDLSource.get_video_info(video_url)
-            video_title = video_data[0]
-            video_length = video_data[1]
-            thumbnail_url = video_data[2]
+            video_title, video_length, thumbnail_url = await YTDLSource.get_video_info(video_url)
 
         video = Video(video_url=video_url, video_id=video_id, thumbnail_url=thumbnail_url, video_title=video_title,
                       video_length=video_length)

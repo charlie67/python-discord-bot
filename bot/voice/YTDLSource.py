@@ -16,6 +16,8 @@ ytdl_format_options = {
     'source_address': '0.0.0.0' # bind to ipv4 since ipv6 addresses cause issues sometimes
 }
 
+maximum_volume = -3
+
 ffmpeg_options = {
     'options': '-vn'
 }

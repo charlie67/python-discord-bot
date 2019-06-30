@@ -7,6 +7,7 @@ api_service_name = "youtube"
 api_version = "v3"
 DEVELOPER_KEY = config.google_key
 parser = htmlparser.HTMLParser()
+youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
 
 
 def get_video_id(url):
@@ -66,32 +67,32 @@ def turn_raw_playlist_items_into_videos(playlist_items: list):
     return videos
 
 
-def get_youtube_details(video_id):
-    youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
-    request = youtube.videos().list(
-        part="snippet,contentDetails",
-        id=video_id
+def get_youtube_autoplay_video(video_id_for_autoplay):
+    request = youtube.search().list(
+        part="snippet",
+        type='video',
+        relatedToVideoId=video_id_for_autoplay,
+        maxResults=2
     )
     response = request.execute()
     # query based on video id so only one response item
-    video_details = response.get('items')[0]
-    video_title = video_details.get('snippet').get('title')
-    video_title = parser.unescape(video_title)
-    video_length = video_details.get('contentDetails').get('duration')
-    # date_time = datetime.datetime.strptime(video_length, "PT%HH%MM%SS");
-    # video_length = str(date_time.hour) + ":" + str(date_time.minute) + ":" + str(date_time.second)
-    return video_title, video_length
+    try:
+        video = response.get('items')[0]
+        video_id = video.get('id').get('videoId')
+        video_url = "https://www.youtube.com/watch?v=" + video_id
+        return video_id, video_url
+    except IndexError:
+        return None, None
 
 
 def search_for_video(search_terms):
-    youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
-
     request = youtube.search().list(
         part="snippet",
         q=search_terms,
         type="video",
         topicId="/m/04rlf",
-        videoCategoryId="10"
+        videoCategoryId="10",
+        maxResults=1
     )
     response = request.execute()
     try:
@@ -112,8 +113,10 @@ class Video:
     file: bool = False
     youtube: bool = False
     filename: str
+    play_type: str
 
-    def __init__(self, video_url=None, video_id=None, video_title=None, thumbnail_url=None, video_length=None, filename=None):
+    def __init__(self, video_url=None, video_id=None, video_title=None, thumbnail_url=None, video_length=None,
+                 filename=None, autoplay=None):
         self.video_url = video_url
         self.video_id = video_id
         self.video_title = video_title
@@ -124,3 +127,8 @@ class Video:
             self.file = True
         else:
             self.youtube = True
+
+        if autoplay is True:
+            self.play_type = "Auto playing"
+        else:
+            self.play_type = "Now playing"
