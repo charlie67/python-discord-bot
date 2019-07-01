@@ -31,6 +31,10 @@ ytdl_format_options = {
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
+# IDEAS
+# playtop to insert at the top of the queue
+# when doing np tell you how far into the song you are
+
 
 async def get_or_create_audio_source(ctx):
     guild = ctx.guild
@@ -66,7 +70,7 @@ class Voice(commands.Cog):
     async def join(self, ctx):
         await get_or_create_audio_source(ctx)
 
-    @commands.command()
+    @commands.command(aliases=['stop'])
     async def leave(self, ctx):
         guild: discord.Guild = ctx.guild
         voice_client: discord.VoiceClient = guild.voice_client
@@ -143,9 +147,6 @@ class Voice(commands.Cog):
                     video_queue = list()
                     self.video_queue_map[server_id] = video_queue
                 video_queue.append(pair)
-                asyncio.run_coroutine_threadsafe(ctx.send("Auto playing {}".format(video.video_title)), self.bot.loop)
-                asyncio.run_coroutine_threadsafe(ctx.send(embed=discord.Embed(title=video_title, url=video_url)),
-                                                 self.bot.loop)
 
         asyncio.run_coroutine_threadsafe(self.audio_player_task(server_id=server_id), self.bot.loop)
 
@@ -320,8 +321,7 @@ class Voice(commands.Cog):
             return await ctx.send("Not playing anything")
         currently_playing = self.currently_playing_map[ctx.guild.id]
         await ctx.send('Now playing: {}'.format(currently_playing.video_title))
-        await ctx.send(
-            embed=discord.Embed(title=currently_playing.video_title, url=currently_playing.video_url))
+        await ctx.send(embed=discord.Embed(title=currently_playing.video_title, url=currently_playing.video_url))
 
     @commands.command()
     async def dishwasher(self, ctx):
