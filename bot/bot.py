@@ -50,15 +50,11 @@ async def on_ready():
 @bot.event
 async def on_guild_update(before: discord.Guild, after: discord.Guild):
     if before.region != after.region:
-        # Stop playing any music
-        # delete the queue
-        # disconnect from voice
-        print("Region has changed")
+        logger.debug("Server region has changed")
         voice_client: discord.voice_client = after.voice_client
         if voice_client:
             await voice_client.disconnect(force=True)
             await after.text_channels.__getitem__(0).send("Can you not change the server region you ADHD twat?")
-    print("guild_update before: {} after: {}".format(before, after))
 
 if __name__ == '__main__':
     import config

@@ -1,5 +1,6 @@
 from urllib.parse import urlparse, parse_qs
 import config
+import random
 import googleapiclient.discovery
 import html.parser as htmlparser
 
@@ -72,12 +73,12 @@ def get_youtube_autoplay_video(video_id_for_autoplay):
         part="snippet",
         type='video',
         relatedToVideoId=video_id_for_autoplay,
-        maxResults=2
+        maxResults=12
     )
     response = request.execute()
     # query based on video id so only one response item
     try:
-        video = response.get('items')[0]
+        video = response.get('items')[random.randint(0, 9)]
         video_id = video.get('id').get('videoId')
         video_url = "https://www.youtube.com/watch?v=" + video_id
         return video_id, video_url
