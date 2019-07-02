@@ -315,26 +315,20 @@ class Voice(commands.Cog):
             if too_many_item_string is not None:
                 await ctx.send(too_many_item_string)
 
+    @commands.command()
+    async def clear(self, ctx):
+        server_id = ctx.guild.id
+        del self.video_queue_map[server_id]
+        await ctx.send("Bye bye queue")
+
     @commands.command(aliases=['np'])
     async def nowplaying(self, ctx):
         if not self.currently_playing_map.keys().__contains__(ctx.guild.id):
             return await ctx.send("Not playing anything")
-        currently_playing = self.currently_playing_map[ctx.guild.id]
-        await ctx.send('Now playing: {}'.format(currently_playing.video_title))
-        await ctx.send(embed=discord.Embed(title=currently_playing.video_title, url=currently_playing.video_url))
-
-    @commands.command()
-    async def dishwasher(self, ctx):
-        return
-        # voice_client = await get_or_create_audio_source(ctx)
-        # if voice_client is None:
-        #     return
-        #
-        # if voice_client.is_playing():
-        #     await ctx.send("I'm already playing be patient will you")
-        #     return
-        #
-        # audio_source = FFmpegPCMAudio("/bot/assets/audio/dishwasher.mp3",
-        #                               executable=FFMPEG_PATH)
-        # voice_client.play(audio_source)
+        currently_playing: Video = self.currently_playing_map[ctx.guild.id]
+        if currently_playing.youtube:
+            await ctx.send(embed=discord.Embed(title=currently_playing.video_title,
+                           url=currently_playing.video_url).set_thumbnail(url=currently_playing.thumbnail_url))
+        else:
+            await ctx.send("Now playing file {}".format(currently_playing.filename))
 
