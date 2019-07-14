@@ -3,12 +3,19 @@ import config
 import random
 import googleapiclient.discovery
 import html.parser as htmlparser
+from enum import Enum
 
 api_service_name = "youtube"
 api_version = "v3"
 DEVELOPER_KEY = config.google_key
 parser = htmlparser.HTMLParser()
 youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
+
+
+class PlayTypes(Enum):
+    AUTO_PLAYING = "Auto playing"
+    NOW_PLAYING = "Now playing"
+    QUEUED = "Added to queue"
 
 
 def get_video_id(url):
@@ -34,7 +41,7 @@ def get_playlist_id(url):
     return id
 
 
-def get_youtube_video_items_on_playlist(playlist_id, items: list, page_token=None, ):
+def get_youtube_video_items_on_playlist(playlist_id, items: list, page_token=None):
     youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
     request = youtube.playlistItems().list(
         part="snippet,contentDetails",
@@ -72,13 +79,15 @@ def get_youtube_autoplay_video(video_id_for_autoplay):
     request = youtube.search().list(
         part="snippet",
         type='video',
+        topicId="/m/04rlf",
+        videoCategoryId="10",
         relatedToVideoId=video_id_for_autoplay,
-        maxResults=12
+        maxResults=6
     )
     response = request.execute()
     # query based on video id so only one response item
     try:
-        video = response.get('items')[random.randint(0, 9)]
+        video = response.get('items')[random.randint(0, 3)]
         video_id = video.get('id').get('videoId')
         video_url = "https://www.youtube.com/watch?v=" + video_id
         return video_id, video_url
@@ -110,14 +119,16 @@ class Video:
     video_id: str
     video_title: str
     thumbnail_url: str
-    video_length: str
+    video_length: str = '0'
     file: bool = False
     youtube: bool = False
     filename: str
-    play_type: str
+    play_type: PlayTypes
+    author_name: str
 
-    def __init__(self, video_url=None, video_id=None, video_title=None, thumbnail_url=None, video_length=None,
+    def __init__(self, author_name, video_url=None, video_id=None, video_title=None, thumbnail_url=None, video_length=None,
                  filename=None, autoplay=False):
+        self.author_name = author_name
         self.video_url = video_url
         self.video_id = video_id
         self.video_title = video_title
@@ -130,6 +141,6 @@ class Video:
             self.youtube = True
 
         if autoplay is True:
-            self.play_type = "Auto playing"
+            self.play_type = PlayTypes.AUTO_PLAYING
         else:
-            self.play_type = "Now playing"
+            self.play_type = PlayTypes.NOW_PLAYING
