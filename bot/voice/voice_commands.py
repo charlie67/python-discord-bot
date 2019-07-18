@@ -124,6 +124,7 @@ class Voice(commands.Cog):
         video: Video = current.video
         voice_client: discord.voice_client = current.voice_client
         ctx = current.message_context
+        logging.debug("here 1")
 
         if not voice_client.is_connected():
             return
@@ -136,9 +137,12 @@ class Voice(commands.Cog):
             return
 
         player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
+        logging.debug("here 2")
 
         self.currently_playing_map[ctx.guild.id] = video
+        logging.debug("here 3")
         player.data['timestarted'] = time.time()
+        logging.debug("here 4")
         voice_client.play(player, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
 
     def toggle_next(self, server_id: int, ctx: discord.message, error=None):
