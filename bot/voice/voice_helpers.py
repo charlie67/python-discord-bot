@@ -82,12 +82,12 @@ def get_youtube_autoplay_video(video_id_for_autoplay):
         topicId="/m/04rlf",
         videoCategoryId="10",
         relatedToVideoId=video_id_for_autoplay,
-        maxResults=6
+        maxResults=4
     )
     response = request.execute()
     # query based on video id so only one response item
     try:
-        video = response.get('items')[random.randint(0, 3)]
+        video = response.get('items')[random.randint(0, 1)]
         video_id = video.get('id').get('videoId')
         video_url = "https://www.youtube.com/watch?v=" + video_id
         return video_id, video_url

@@ -29,3 +29,6 @@ class VideoQueue:
 
     def length(self) -> int:
         return self.video_queue_list.__len__()
+
+    def is_next_song_file(self):
+        return self.video_queue_list.__getitem__(0).video.file

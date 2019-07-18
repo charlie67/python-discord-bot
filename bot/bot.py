@@ -22,11 +22,6 @@ async def doyouwin(ctx):
     await ctx.send("of course I do" + "\n" + "bitch")
 
 
-@bot.command(aliases=['mike'])
-async def willy(ctx):
-    await ctx.send(file=discord.File('/bot/assets/images/willy.jpg'))
-
-
 @bot.command(aliases=['byedriver'])
 async def bye(ctx):
     await ctx.send("https://www.youtube.com/watch?v=qpmFnUTkpL0")
@@ -85,4 +80,5 @@ if __name__ == '__main__':
     logger.addHandler(handler)
 
     bot.load_extension("voice.voice_commands")
+    bot.load_extension("image.image_commands")
     bot.run(config.token)

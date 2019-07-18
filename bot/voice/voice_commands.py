@@ -39,7 +39,6 @@ ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 # search for song
 # remove from queue
 # queue shows autoplay song
-# when adding a file to play check that the file exists
 # play history
 
 async def get_or_create_audio_source(ctx):
@@ -115,7 +114,12 @@ class Voice(commands.Cog):
     async def audio_player_task(self, server_id):
         logging.debug("Playing next song in queue for server {}".format(server_id))
         video_queue: VideoQueue = self.video_queue_map.get(server_id)
-        current = video_queue.get_and_remove_first_item()
+
+        if video_queue.is_next_song_file():
+            current = video_queue.video_queue_list.__getitem__(0)
+            video_queue.video_queue_list.__delitem__(0)
+        else:
+            current = video_queue.get_and_remove_first_item()
 
         video: Video = current.video
         voice_client: discord.voice_client = current.voice_client
@@ -127,7 +131,7 @@ class Voice(commands.Cog):
         if video.file:
             audio_source = FFmpegPCMAudio("/bot/assets/audio/" + video.filename,
                                           executable=FFMPEG_PATH)
-            await ctx.send('{}: {}'.format(video.play_type, video.filename))
+            await ctx.send('{}: {}'.format(video.play_type.value, video.filename))
             voice_client.play(audio_source, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
             return
 
@@ -277,14 +281,16 @@ class Voice(commands.Cog):
         if voice_client is None:
             return
 
+        file_list = os.listdir("/bot/assets/audio")
+
         if file_name is None:
-            file_list = os.listdir("/bot/assets/audio")
             file_name = random.choice(file_list)
 
         if not file_name.endswith(".mp3"):
             file_name = file_name + ".mp3"
 
-        # TODO add a check that the file exists
+        if not file_list.__contains__(file_name):
+            return await ctx.send("File {} was not found".format(file_name))
         video = Video(author_name=ctx.author.name, filename=file_name, video_length="0")
 
         video_queue_item_to_add = VideoQueueItem(video=video, voice_client=voice_client, message_context=ctx)
