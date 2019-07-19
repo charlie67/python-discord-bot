@@ -6,7 +6,6 @@ import random
 
 import discord
 import wget
-import asyncio
 from discord.ext import commands
 from discord import File
 
@@ -38,6 +37,9 @@ class Image(commands.Cog):
         if not image_name.endswith(".jpg"):
             image_name = image_name + ".jpg"
 
+        if not file_list.__contains__(image_name):
+            return await ctx.send(embed=discord.Embed(title="Image {} was not found".format(image_name)))
+
         image_name = IMAGE_DIR + image_name
 
         file = io.FileIO(image_name)
@@ -45,7 +47,7 @@ class Image(commands.Cog):
 
         await ctx.channel.send(file=image_file)
 
-    @commands.command()
+    @commands.command(aliases=["di", "download-image"])
     async def download_image(self, ctx, url: str, image_name: str):
         wget.download(url, IMAGE_DIR + image_name + ".jpg", )
-        return await ctx.send("{} downloaded".format(image_name))
+        return await ctx.send(embed=discord.Embed(title="{} downloaded".format(image_name)))

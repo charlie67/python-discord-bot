@@ -57,7 +57,7 @@ async def on_message(message):
 @bot.event
 async def on_command_error(ctx, error):
     await ctx.send("Error executing {}: {}".format(ctx.message.content, error))
-    logger.error("Error on command", ctx, error)
+    logger.error("Error executing {}".format(ctx.message.content), error)
 
 
 @bot.event

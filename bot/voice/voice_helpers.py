@@ -1,4 +1,5 @@
 from urllib.parse import urlparse, parse_qs
+import isodate
 import config
 import random
 import googleapiclient.discovery
@@ -18,31 +19,18 @@ class PlayTypes(Enum):
     QUEUED = "Added to queue"
 
 
-def get_video_id(url):
-    query = urlparse(url)
-    if query.hostname == 'youtu.be': return query.path[1:]
-    if query.hostname in ('www.youtube.com', 'youtube.com'):
-        if query.path == '/watch': return parse_qs(query.query)['v'][0]
-        if query.path[:7] == '/embed/': return query.path.split('/')[2]
-        if query.path[:3] == '/v/': return query.path.split('/')[2]
-    # fail?
-    return None
-
-
-def get_videos_on_playlist(url):
-    playlist_id = get_playlist_id(url)
+def get_videos_on_playlist(playlist_id, author_name):
     playlist_videos_raw = get_youtube_video_items_on_playlist(playlist_id, [])
-    return turn_raw_playlist_items_into_videos(playlist_videos_raw)
+    return turn_raw_playlist_items_into_videos(playlist_videos_raw, author_name)
 
 
 def get_playlist_id(url):
     query = urlparse(url)
-    id = query[4][5:39]
+    id = query[4][19:53]
     return id
 
 
 def get_youtube_video_items_on_playlist(playlist_id, items: list, page_token=None):
-    youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=DEVELOPER_KEY)
     request = youtube.playlistItems().list(
         part="snippet,contentDetails",
         playlistId=playlist_id,
@@ -58,7 +46,7 @@ def get_youtube_video_items_on_playlist(playlist_id, items: list, page_token=Non
     return items
 
 
-def turn_raw_playlist_items_into_videos(playlist_items: list):
+def turn_raw_playlist_items_into_videos(playlist_items: list, author_name):
     videos = []
     for i in range(len(playlist_items)):
         item = playlist_items.__getitem__(i)
@@ -66,28 +54,45 @@ def turn_raw_playlist_items_into_videos(playlist_items: list):
         video_id = item.get('snippet').get('resourceId').get('videoId')
         video_url = "https://www.youtube.com/watch?v=" + str(video_id)
         video_title = item.get('snippet').get('title')
-        video_length = 0
+        video_length = get_video_duration(video_id)
         thumbnail_url = item.get('snippet').get('thumbnails').get('default').get('url')
 
         videos.append(Video(video_url=video_url, video_id=video_id, video_title=video_title,
-                            thumbnail_url=thumbnail_url, video_length=video_length))
+                            thumbnail_url=thumbnail_url, video_length=video_length, author_name=author_name))
 
     return videos
+
+
+def get_first_item_url(url):
+    query = urlparse(url)
+    id = query[4][2:13]
+    return "https://www.youtube.com/watch?v=" + id
+
+
+def get_video_duration(id):
+    request = youtube.videos().list(
+        part="contentDetails",
+        id=id
+    )
+    response = request.execute()
+    video = response.get('items')[0]
+    time = video.get("contentDetails").get("duration")
+
+    parsed_t = isodate.parse_duration(time)
+    return parsed_t.total_seconds()
 
 
 def get_youtube_autoplay_video(video_id_for_autoplay):
     request = youtube.search().list(
         part="snippet",
         type='video',
-        topicId="/m/04rlf",
-        videoCategoryId="10",
         relatedToVideoId=video_id_for_autoplay,
         maxResults=4
     )
     response = request.execute()
     # query based on video id so only one response item
     try:
-        video = response.get('items')[random.randint(0, 1)]
+        video = response.get('items')[random.randint(0, 2)]
         video_id = video.get('id').get('videoId')
         video_url = "https://www.youtube.com/watch?v=" + video_id
         return video_id, video_url
@@ -126,7 +131,8 @@ class Video:
     play_type: PlayTypes
     author_name: str
 
-    def __init__(self, author_name, video_url=None, video_id=None, video_title=None, thumbnail_url=None, video_length=None,
+    def __init__(self, author_name, video_url=None, video_id=None, video_title=None, thumbnail_url=None,
+                 video_length=None,
                  filename=None, autoplay=False):
         self.author_name = author_name
         self.video_url = video_url
@@ -143,4 +149,8 @@ class Video:
         if autoplay is True:
             self.play_type = PlayTypes.AUTO_PLAYING
         else:
-            self.play_type = PlayTypes.NOW_PLAYING
+            self.play_type = PlayTypes.QUEUED
+
+
+
+
