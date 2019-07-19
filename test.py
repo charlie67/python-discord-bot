@@ -6,7 +6,7 @@ from bot.voice.voice_helpers import Video, PlayTypes
 class TestReceive(unittest.TestCase):
 
     def test_get_video_search(self):
-        video: Video = YTDLSource.YTDLSource.get_video("test", "test author")
+        video: Video = YTDLSource.YTDLSource.get_video("test", "test author").__getitem__(0)
         self.assertEqual(video.author_name, "test author")
         self.assertEqual(video.file, False)
         self.assertEqual(video.youtube, True)
@@ -15,7 +15,7 @@ class TestReceive(unittest.TestCase):
         self.assertTrue(video.video_url.startswith("https://www.youtube.com/watch?"))
 
     def test_get_video_url(self):
-        video: Video = YTDLSource.YTDLSource.get_video("https://www.youtube.com/watch?v=Dqp0sMWTwwI", "test author")
+        video: Video = YTDLSource.YTDLSource.get_video("https://www.youtube.com/watch?v=Dqp0sMWTwwI", "test author").__getitem__(0)
         self.assertEqual(video.author_name, "test author")
         self.assertEqual(video.file, False)
         self.assertEqual(video.youtube, True)
