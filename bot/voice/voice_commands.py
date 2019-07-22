@@ -333,9 +333,7 @@ class Voice(commands.Cog):
 
             queue_embed = discord.Embed(description=string_to_send)
             queue_embed.set_author(name="Queue for {}".format(ctx.guild.name))
-            queue_embed.set_footer(
-                text="{} songs in queue | {} total length".format(video_queue.length(), await time_string(
-                    video_queue.total_play_time)))
+            queue_embed.set_footer(text="{} songs in queue".format(video_queue.length()))
             await ctx.send(embed=queue_embed)
             if too_many_item_string is not None:
                 await ctx.send(too_many_item_string)
