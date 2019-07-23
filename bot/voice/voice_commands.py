@@ -94,10 +94,6 @@ class Voice(commands.Cog):
         handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
         self.logger.addHandler(handler)
 
-    @commands.command(aliases=['summon'], help="Join the voice channel you are currently in")
-    async def join(self, ctx):
-        await get_or_create_audio_source(ctx)
-
     @commands.command(aliases=['stop'], help="Leave the current voice channel")
     async def leave(self, ctx):
         guild: discord.Guild = ctx.guild
@@ -128,12 +124,12 @@ class Voice(commands.Cog):
         ctx = current.message_context
         self.logger.debug("audio player - got from queue")
 
-        if video.file:
-            audio_source = FFmpegPCMAudio("/bot/assets/audio/" + video.filename,
-                                          executable=FFMPEG_PATH)
-            await ctx.send('{}: {}'.format(video.play_type.value, video.filename))
-            voice_client.play(audio_source, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
-            return
+        # if video.file:
+        #     audio_source = FFmpegPCMAudio("/bot/assets/audio/" + video.filename,
+        #                                   executable=FFMPEG_PATH)
+        #     await ctx.send('{}: {}'.format(video.play_type.value, video.filename))
+        #     voice_client.play(audio_source, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
+        #     return
 
         player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
         self.logger.debug("audio player - player created")
@@ -142,7 +138,7 @@ class Voice(commands.Cog):
         self.logger.debug("audio player - currently playing updated")
         # player.data['timestarted'] = time.time()
         self.logger.debug("audio player - set time started")
-        voice_client.play(player, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
+        voice_client.play(player, after=lambda e: print("oh fuck " + e))
 
     def toggle_next(self, server_id: int, ctx: discord.message, error=None):
         if error is not None:
@@ -191,10 +187,7 @@ class Voice(commands.Cog):
             video_queue = VideoQueue()
             self.video_queue_map[server_id] = video_queue
 
-        voice_client = await get_or_create_audio_source(ctx)
-        if voice_client is None:
-            return
-
+        voice_client = ctx.voice_client
         await ctx.send("Searching for {}".format(item_to_play))
 
         video_list = YTDLSource.get_video(item_to_play, author_name=ctx.author.name)
@@ -210,27 +203,31 @@ class Voice(commands.Cog):
 
         video = video_list.__getitem__(0)
 
-        if not voice_client.is_playing():
-            description_string = "Song Duration: {}".format(await time_string(video.video_length))
-            now_playing_embed = discord.Embed(title=video.video_title,
-                                              url=video.video_url,
-                                              description=description_string)
-            now_playing_embed.set_author(name="Now playing")
-            now_playing_embed.set_footer(text="Requested by {}".format(video.author_name))
-            now_playing_embed.set_thumbnail(url=video.thumbnail_url)
-            await ctx.send(embed=now_playing_embed)
-            self.toggle_next(server_id=ctx.guild.id, ctx=ctx)
-        else:
-            description_string = "Queue position: {} \nSong Duration: {}".format(video_queue.length(),
-                                                                                 await time_string(
-                                                                                     video.video_length))
-            queue_embed = discord.Embed(title=video.video_title,
-                                        url=video.video_url,
-                                        description=description_string)
-            queue_embed.set_author(name="Added to queue")
-            queue_embed.set_footer(text="Requested by {}".format(video.author_name))
-            queue_embed.set_thumbnail(url=video.thumbnail_url)
-            await ctx.send(embed=queue_embed)
+        player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
+        voice_client.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
+        await ctx.send('Now playing: {}'.format(player.title))
+
+        # if not voice_client.is_playing():
+        #     description_string = "Song Duration: {}".format(await time_string(video.video_length))
+        #     now_playing_embed = discord.Embed(title=video.video_title,
+        #                                       url=video.video_url,
+        #                                       description=description_string)
+        #     now_playing_embed.set_author(name="Now playing")
+        #     now_playing_embed.set_footer(text="Requested by {}".format(video.author_name))
+        #     now_playing_embed.set_thumbnail(url=video.thumbnail_url)
+        #     await ctx.send(embed=now_playing_embed)
+        #     self.toggle_next(server_id=ctx.guild.id, ctx=ctx)
+        # else:
+        #     description_string = "Queue position: {} \nSong Duration: {}".format(video_queue.length(),
+        #                                                                          await time_string(
+        #                                                                              video.video_length))
+        #     queue_embed = discord.Embed(title=video.video_title,
+        #                                 url=video.video_url,
+        #                                 description=description_string)
+        #     queue_embed.set_author(name="Added to queue")
+        #     queue_embed.set_footer(text="Requested by {}".format(video.author_name))
+        #     queue_embed.set_thumbnail(url=video.thumbnail_url)
+        #     await ctx.send(embed=queue_embed)
 
     @commands.command()
     async def skip(self, ctx):
@@ -348,9 +345,6 @@ class Voice(commands.Cog):
         if not self.currently_playing_map.keys().__contains__(ctx.guild.id):
             return await ctx.send("Not playing anything")
         currently_playing: Video = self.currently_playing_map[ctx.guild.id]
-        if currently_playing.play_type == voice_helpers.PlayTypes.AUTO_PLAYING:
-            self.logger.debug("fuck")
-            return
         if currently_playing.youtube:
             voice_client: YTDLSource = ctx.guild.voice_client.source
             # time_started = voice_client.data['timestarted']
@@ -366,3 +360,14 @@ class Voice(commands.Cog):
             await ctx.send(embed=embed)
         else:
             await ctx.send("Now playing file {}".format(currently_playing.filename))
+
+    @play.before_invoke
+    async def ensure_voice(self, ctx):
+        if ctx.voice_client is None:
+            if ctx.author.voice:
+                await ctx.author.voice.channel.connect()
+            else:
+                await ctx.send("You are not connected to a voice channel.")
+                raise commands.CommandError("Author not connected to a voice channel.")
+        elif ctx.voice_client.is_playing():
+            ctx.voice_client.stop()

@@ -102,10 +102,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     async def from_url(cls, url, *, loop=None, stream=False):
         logger.debug("Creating ytdl player")
         loop = loop or asyncio.get_event_loop()
-        data = cls.url_data_map[url] if cls.url_data_map.keys().__contains__(url) else await loop.run_in_executor(None,
-                                                                                                                  lambda: ytdl.extract_info(
-                                                                                                                      url,
-                                                                                                                      download=not stream))
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
         logger.debug("extracting the data")
 
         if 'entries' in data:
