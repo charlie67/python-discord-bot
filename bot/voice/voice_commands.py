@@ -140,7 +140,7 @@ class Voice(commands.Cog):
 
         self.currently_playing_map[ctx.guild.id] = video
         self.logger.debug("audio player - currently playing updated")
-        player.data['timestarted'] = time.time()
+        # player.data['timestarted'] = time.time()
         self.logger.debug("audio player - set time started")
         voice_client.play(player, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
 
@@ -353,13 +353,13 @@ class Voice(commands.Cog):
             return
         if currently_playing.youtube:
             voice_client: YTDLSource = ctx.guild.voice_client.source
-            time_started = voice_client.data['timestarted']
+            # time_started = voice_client.data['timestarted']
             video_length = int(currently_playing.video_length)
-            description_string = "{}".format(await get_time_for_now_playing(video_length, time_started))
+            # description_string = "{}".format(await get_time_for_now_playing(video_length, time_started))
             footer_string = "Queued by {}".format(currently_playing.author_name)
             embed = discord.Embed(title=currently_playing.video_title,
                                   url=currently_playing.video_url,
-                                  description=description_string)
+                                  description="description_string")
             embed.set_thumbnail(url=currently_playing.thumbnail_url)
             embed.set_author(name="Now playing")
             embed.set_footer(text=footer_string)
