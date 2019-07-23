@@ -19,12 +19,11 @@ class VideoQueue:
 
     def add_to_queue(self, queue_item_to_add: VideoQueueItem):
         self.video_queue_list.append(queue_item_to_add)
-        self.total_play_time += int(queue_item_to_add.video.video_length)
+        # self.total_play_time += int(queue_item_to_add.video.video_length)
 
     def get_and_remove_first_item(self) -> VideoQueueItem:
-        item_to_return: VideoQueueItem = self.video_queue_list.__getitem__(0)
+        item_to_return = self.video_queue_list.__getitem__(0)
         self.video_queue_list.__delitem__(0)
-        self.total_play_time -= item_to_return.video.video_length
         return item_to_return
 
     def length(self) -> int:

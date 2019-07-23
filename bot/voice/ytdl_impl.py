@@ -37,6 +37,8 @@ ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
+    url_data_map = {}
+
     def __init__(self, source, *, data, volume=0.5):
         super().__init__(source, volume)
 
@@ -88,6 +90,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
         video_id = data['id']
         video_url = data['webpage_url']
 
+        cls.url_data_map[video_url] = data
+
         video = voice_helpers.Video(author_name=author_name, video_url=video_url, video_id=video_id,
                                     thumbnail_url=thumbnail_url, video_title=video_title, video_length=video_length)
 
@@ -96,12 +100,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=False):
+        logger.debug("Creating ytdl player")
         loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        data = cls.url_data_map[url] if cls.url_data_map.keys().__contains__(url) else await loop.run_in_executor(None,
+                                                                                                                  lambda: ytdl.extract_info(
+                                                                                                                      url,
+                                                                                                                      download=not stream))
+        logger.debug("extracting the data")
 
         if 'entries' in data:
             # take first item from a playlist
             data = data['entries'][0]
 
-        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        filename = data['url'] if stream else ytdl.prepare_filename(url)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options, before_options=beforeArgs), data=data)

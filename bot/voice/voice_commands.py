@@ -9,6 +9,7 @@ import os
 import random
 import youtube_dl
 from voice import voice_helpers
+from voice.voice_helpers import Video
 from voice.ytdl_impl import YTDLSource
 import time
 from voice.video_queue import VideoQueue, VideoQueueItem
@@ -115,19 +116,12 @@ class Voice(commands.Cog):
         logging.debug("Playing next song in queue for server {}".format(server_id))
         video_queue: VideoQueue = self.video_queue_map.get(server_id)
 
-        if video_queue.is_next_song_file():
-            current = video_queue.video_queue_list.__getitem__(0)
-            video_queue.video_queue_list.__delitem__(0)
-        else:
-            current = video_queue.get_and_remove_first_item()
+        current: VideoQueueItem = video_queue.get_and_remove_first_item()
 
-        video: voice_helpers.Video = current.video
+        video: Video = current.video
         voice_client: discord.voice_client = current.voice_client
         ctx = current.message_context
         self.logger.debug("audio player - got from queue")
-
-        if not voice_client.is_connected():
-            return
 
         if video.file:
             audio_source = FFmpegPCMAudio("/bot/assets/audio/" + video.filename,
@@ -137,12 +131,12 @@ class Voice(commands.Cog):
             return
 
         player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
-        logging.debug("audio player - player created")
+        self.logger.debug("audio player - player created")
 
         self.currently_playing_map[ctx.guild.id] = video
-        logging.debug("audio player - currently playing updated")
+        self.logger.debug("audio player - currently playing updated")
         player.data['timestarted'] = time.time()
-        logging.debug("audio player - set time started")
+        self.logger.debug("audio player - set time started")
         voice_client.play(player, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
 
     def toggle_next(self, server_id: int, ctx: discord.message, error=None):
@@ -158,7 +152,7 @@ class Voice(commands.Cog):
         self.logger.debug("toggling next for {}".format(server_id.__str__()))
 
         video_queue: VideoQueue = self.video_queue_map.get(server_id)
-        if video_queue.video_queue_list.__len__() == 0:
+        if video_queue.length() == 0:
             self.logger.debug("Video queue is empty so getting a video to autoplay from the previous video")
             if last_playing_video is not None and last_playing_video.youtube:
                 video_id, video_url = voice_helpers.get_youtube_autoplay_video(last_playing_video.video_id)
@@ -246,7 +240,7 @@ class Voice(commands.Cog):
             else:
                 return await ctx.send("Not currently playing")
         else:
-            return await ctx.send("You need to be in a voice channel")
+            return await ctx.send("Need to be connected to a voice channel to do that")
 
     @commands.command()
     async def playfile(self, ctx: discord.Message, file_name: str = None):
