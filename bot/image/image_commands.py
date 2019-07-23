@@ -20,7 +20,7 @@ class Image(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.logger = logging.getLogger('discord')
+        self.logger = logging.Logger("image commands")
         self.logger.setLevel(logging.DEBUG)
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))

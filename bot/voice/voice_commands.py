@@ -88,7 +88,7 @@ class Voice(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.logger = logging.getLogger('discord')
+        self.logger = logging.Logger("voice commands")
         self.logger.setLevel(logging.DEBUG)
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
@@ -103,12 +103,17 @@ class Voice(commands.Cog):
         guild: discord.Guild = ctx.guild
         voice_client: discord.VoiceClient = guild.voice_client
         if voice_client is not None:
+            if voice_client.source is not None:
+                voice_client.source.original.cleanup()
             await voice_client.disconnect()
 
             server_id = ctx.guild.id
 
             if self.video_queue_map.keys().__contains__(server_id):
                 del self.video_queue_map[server_id]
+
+            if self.currently_playing_map.keys().__contains__(server_id):
+                del self.currently_playing_map[server_id]
         else:
             await ctx.send("... What are you actually expecting me to do??")
 
@@ -142,7 +147,7 @@ class Voice(commands.Cog):
     def toggle_next(self, server_id: int, ctx: discord.message, error=None):
         if error is not None:
             asyncio.run_coroutine_threadsafe(ctx.send("Error playing that video"), self.bot.loop)
-            self.logger.error("error playing back video" + error)
+            self.logger.error("error playing back video", error)
 
         last_playing_video = None
 
@@ -152,7 +157,7 @@ class Voice(commands.Cog):
         self.logger.debug("toggling next for {}".format(server_id.__str__()))
 
         video_queue: VideoQueue = self.video_queue_map.get(server_id)
-        if video_queue.length() == 0:
+        if video_queue.length() == 0 and ctx.guild.voice_client.is_connected():
             self.logger.debug("Video queue is empty so getting a video to autoplay from the previous video")
             if last_playing_video is not None and last_playing_video.youtube:
                 video_id, video_url = voice_helpers.get_youtube_autoplay_video(last_playing_video.video_id)
@@ -342,7 +347,10 @@ class Voice(commands.Cog):
     async def nowplaying(self, ctx):
         if not self.currently_playing_map.keys().__contains__(ctx.guild.id):
             return await ctx.send("Not playing anything")
-        currently_playing: voice_helpers.Video = self.currently_playing_map[ctx.guild.id]
+        currently_playing: Video = self.currently_playing_map[ctx.guild.id]
+        if currently_playing.play_type == voice_helpers.PlayTypes.AUTO_PLAYING:
+            self.logger.debug("fuck")
+            return
         if currently_playing.youtube:
             voice_client: YTDLSource = ctx.guild.voice_client.source
             time_started = voice_client.data['timestarted']
