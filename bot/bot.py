@@ -35,8 +35,8 @@ async def voice_client_disconnect_check(voice_client):
 @bot.event
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
     voice_client: discord.voice_client = member.guild.voice_client
-    if voice_client and voice_client.channel.members.__len__() == 1:
-        Timer(10, voice_client_disconnect_check, parameter=voice_client)
+    # if voice_client and voice_client.channel.members.__len__() == 1:
+    #     Timer(10, voice_client_disconnect_check, parameter=voice_client)
 
 
 @bot.event
