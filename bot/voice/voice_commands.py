@@ -124,19 +124,19 @@ class Voice(commands.Cog):
         ctx = current.message_context
         self.logger.debug("audio player - got from queue")
 
-        # if video.file:
-        #     audio_source = FFmpegPCMAudio("/bot/assets/audio/" + video.filename,
-        #                                   executable=FFMPEG_PATH)
-        #     await ctx.send('{}: {}'.format(video.play_type.value, video.filename))
-        #     voice_client.play(audio_source, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
-        #     return
+        if video.file:
+            audio_source = FFmpegPCMAudio("/bot/assets/audio/" + video.filename,
+                                          executable=FFMPEG_PATH)
+            await ctx.send('{}: {}'.format(video.play_type.value, video.filename))
+            voice_client.play(audio_source, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
+            return
 
         player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
         self.logger.debug("audio player - player created")
 
         self.currently_playing_map[ctx.guild.id] = video
         self.logger.debug("audio player - currently playing updated")
-        # player.data['timestarted'] = time.time()
+        player.data['timestarted'] = time.time()
         self.logger.debug("audio player - set time started")
         voice_client.play(player, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
 
@@ -153,7 +153,8 @@ class Voice(commands.Cog):
         self.logger.debug("toggling next for {}".format(server_id.__str__()))
 
         video_queue: VideoQueue = self.video_queue_map.get(server_id)
-        if video_queue.length() == 0 and ctx.guild.voice_client.is_connected():
+        voice_client = ctx.guild.voice_client
+        if video_queue.length() == 0 and voice_client.is_connected() and voice_client.channel.members.__len__() > 1:
             self.logger.debug("Video queue is empty so getting a video to autoplay from the previous video")
             if last_playing_video is not None and last_playing_video.youtube:
                 video_id, video_url = voice_helpers.get_youtube_autoplay_video(last_playing_video.video_id)
@@ -175,6 +176,8 @@ class Voice(commands.Cog):
                                                          message_context=ctx)
                 server_id = ctx.guild.id
                 video_queue.add_to_queue(video_queue_item_to_add)
+        elif voice_client.channel.members.__len__() <= 1:
+            asyncio.run_coroutine_threadsafe(voice_client.disconnect(), self.bot.loop)
 
         asyncio.run_coroutine_threadsafe(self.audio_player_task(server_id=server_id), self.bot.loop)
 
@@ -343,13 +346,13 @@ class Voice(commands.Cog):
         currently_playing: Video = self.currently_playing_map[ctx.guild.id]
         if currently_playing.youtube:
             voice_client: YTDLSource = ctx.guild.voice_client.source
-            # time_started = voice_client.data['timestarted']
+            time_started = voice_client.data['timestarted']
             video_length = int(currently_playing.video_length)
-            # description_string = "{}".format(await get_time_for_now_playing(video_length, time_started))
+            description_string = "{}".format(await get_time_for_now_playing(video_length, time_started))
             footer_string = "Queued by {}".format(currently_playing.author_name)
             embed = discord.Embed(title=currently_playing.video_title,
                                   url=currently_playing.video_url,
-                                  description="description_string")
+                                  description=description_string)
             embed.set_thumbnail(url=currently_playing.thumbnail_url)
             embed.set_author(name="Now playing")
             embed.set_footer(text=footer_string)
@@ -358,6 +361,7 @@ class Voice(commands.Cog):
             await ctx.send("Now playing file {}".format(currently_playing.filename))
 
     @play.before_invoke
+    @playfile.before_invoke
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:
             if ctx.author.voice:
