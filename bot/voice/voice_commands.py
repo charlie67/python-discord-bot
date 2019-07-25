@@ -8,6 +8,8 @@ from discord import FFmpegPCMAudio
 import os
 import random
 import youtube_dl
+
+from utilities.timer import Timer
 from voice import voice_helpers
 from voice.voice_helpers import Video
 from voice.ytdl_impl import YTDLSource
@@ -31,6 +33,8 @@ ytdl_format_options = {
 }
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+
+TIMEOUT_VALUE = 3
 
 
 # IDEAS
@@ -86,6 +90,8 @@ class Voice(commands.Cog):
     video_queue_map = {}
     currently_playing_map = {}
 
+    bot = None
+
     def __init__(self, bot):
         self.bot = bot
         self.logger = logging.Logger("voice commands")
@@ -93,6 +99,13 @@ class Voice(commands.Cog):
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
         self.logger.addHandler(handler)
+
+        task = asyncio.ensure_future(self.execute_audio_tasks())
+
+        try:
+            self.bot.loop.run_until_complete(task)
+        except asyncio.CancelledError:
+            pass
 
     @commands.command(aliases=['stop'], help="Leave the current voice channel")
     async def leave(self, ctx):
@@ -105,13 +118,31 @@ class Voice(commands.Cog):
 
             server_id = ctx.guild.id
 
-            if self.video_queue_map.keys().__contains__(server_id):
-                del self.video_queue_map[server_id]
-
-            if self.currently_playing_map.keys().__contains__(server_id):
-                del self.currently_playing_map[server_id]
+            await self.remove_video_information(server_id)
         else:
             await ctx.send("... What are you actually expecting me to do??")
+
+    async def remove_video_information(self, server_id):
+        """Remove the stored video information for the server with the supplied id"""
+        if self.video_queue_map.keys().__contains__(server_id):
+            del self.video_queue_map[server_id]
+        if self.currently_playing_map.keys().__contains__(server_id):
+            del self.currently_playing_map[server_id]
+
+    async def execute_audio_tasks(self):
+        while True:
+            print("called")
+            # get all the keys in vdeo_queue_map
+            all_servers = self.video_queue_map.keys()
+            # for each of those keys (server_id's) get the voice client
+            for server_id in all_servers:
+                guild = self.bot.get_guild(server_id)
+                voice_client: discord.voice_client = guild.voice_client
+                # for each of those voice clients check if it's currently playing and is connected
+                if voice_client.is_connected() and not voice_client.is_playing():
+                    # if so start the audio player task
+                    await self.audio_player_task(server_id)
+            await asyncio.sleep(3)
 
     async def audio_player_task(self, server_id):
         self.logger.debug("Playing next song in queue for server {}".format(server_id))
@@ -120,7 +151,9 @@ class Voice(commands.Cog):
         current: VideoQueueItem = video_queue.get_and_remove_first_item()
 
         video: Video = current.video
+
         voice_client: discord.voice_client = current.voice_client
+
         ctx = current.message_context
         self.logger.debug("audio player - got from queue")
 
@@ -136,6 +169,7 @@ class Voice(commands.Cog):
 
         self.currently_playing_map[ctx.guild.id] = video
         self.logger.debug("audio player - currently playing updated")
+
         player.data['timestarted'] = time.time()
         self.logger.debug("audio player - set time started")
         voice_client.play(player, after=lambda e: self.toggle_next(server_id=server_id, ctx=ctx, error=e))
@@ -176,8 +210,6 @@ class Voice(commands.Cog):
                                                          message_context=ctx)
                 server_id = ctx.guild.id
                 video_queue.add_to_queue(video_queue_item_to_add)
-        elif voice_client.channel.members.__len__() <= 1:
-            asyncio.run_coroutine_threadsafe(voice_client.disconnect(), self.bot.loop)
 
         asyncio.run_coroutine_threadsafe(self.audio_player_task(server_id=server_id), self.bot.loop)
 
@@ -206,27 +238,18 @@ class Voice(commands.Cog):
 
         video = video_list.__getitem__(0)
 
-        if not voice_client.is_playing():
-            description_string = "Song Duration: {}".format(await time_string(video.video_length))
-            now_playing_embed = discord.Embed(title=video.video_title,
-                                              url=video.video_url,
-                                              description=description_string)
-            now_playing_embed.set_author(name="Now playing")
-            now_playing_embed.set_footer(text="Requested by {}".format(video.author_name))
-            now_playing_embed.set_thumbnail(url=video.thumbnail_url)
-            await ctx.send(embed=now_playing_embed)
-            await self.audio_player_task(server_id=server_id)
-        else:
-            description_string = "Queue position: {} \nSong Duration: {}".format(video_queue.length(),
-                                                                                 await time_string(
-                                                                                     video.video_length))
-            queue_embed = discord.Embed(title=video.video_title,
-                                        url=video.video_url,
-                                        description=description_string)
-            queue_embed.set_author(name="Added to queue")
-            queue_embed.set_footer(text="Requested by {}".format(video.author_name))
-            queue_embed.set_thumbnail(url=video.thumbnail_url)
-            await ctx.send(embed=queue_embed)
+        # asyncio.ensure_future(self.execute_audio_tasks())
+
+        description_string = "Queue position: {} \nSong Duration: {}".format(video_queue.length(),
+                                                                             await time_string(
+                                                                                 video.video_length))
+        queue_embed = discord.Embed(title=video.video_title,
+                                    url=video.video_url,
+                                    description=description_string)
+        queue_embed.set_author(name="Added to queue")
+        queue_embed.set_footer(text="Requested by {}".format(video.author_name))
+        queue_embed.set_thumbnail(url=video.thumbnail_url)
+        await ctx.send(embed=queue_embed)
 
     @commands.command()
     async def skip(self, ctx):
@@ -369,3 +392,18 @@ class Voice(commands.Cog):
             else:
                 await ctx.send("You are not connected to a voice channel.")
                 raise commands.CommandError("Author not connected to a voice channel.")
+
+    async def voice_client_disconnect_check(self, voice_client_server_id_tuple):
+        voice_client = voice_client_server_id_tuple[0]
+        server_id = voice_client_server_id_tuple[1]
+
+        if voice_client.is_connected() and voice_client.channel.members.__len__() == 1:
+            await voice_client.disconnect(force=True)
+            await self.remove_video_information(server_id)
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+        voice_client: discord.voice_client = member.guild.voice_client
+        if voice_client and voice_client.channel.members.__len__() == 1:
+            voice_client_server_id_tuple = (voice_client, member.guild.id)
+            Timer(TIMEOUT_VALUE, self.voice_client_disconnect_check, parameter=voice_client_server_id_tuple)

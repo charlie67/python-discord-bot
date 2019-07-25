@@ -4,6 +4,9 @@ import discord
 import logging
 from discord.ext import commands
 from utilities.timer import Timer
+from voice import voice_commands
+
+TIMEOUT_VALUE = 10
 
 COMMAND_START = '-'
 
@@ -15,11 +18,6 @@ bot.command()
 async def hello(ctx):
     author = ctx.author
     await ctx.send("Hey there " + author.name)
-
-
-@bot.command()
-async def doyouwin(ctx):
-    await ctx.send("of course I do" + "\n" + "bitch")
 
 
 @bot.command(aliases=['byedriver'])
@@ -41,11 +39,10 @@ async def on_message(message):
     if author != bot.user:
         await bot.process_commands(message)
 
-
-@bot.event
-async def on_command_error(ctx, error):
-    await ctx.send("Error executing {}: {}".format(ctx.message.content, error))
-    logger.error("Error executing {}".format(ctx.message.content), error)
+# @bot.event
+# async def on_command_error(ctx, error):
+#     await ctx.send("Error executing {}: {}".format(ctx.message.content, error))
+#     logger.error("Error executing {}".format(ctx.message.content), error)
 
 
 @bot.event
