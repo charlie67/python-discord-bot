@@ -8,6 +8,7 @@ import discord
 import wget
 from discord.ext import commands
 from discord import File
+from google_images_download import google_images_download
 
 IMAGE_DIR = "/bot/assets/images/"
 
@@ -51,3 +52,8 @@ class Image(commands.Cog):
     async def download_image(self, ctx, url: str, image_name: str):
         wget.download(url, IMAGE_DIR + image_name + ".jpg", )
         return await ctx.send(embed=discord.Embed(title="{} downloaded".format(image_name)))
+
+    @commands.command()
+    async def imagesearch(self, ctx, *, search_term: str):
+        response = google_images_download.googleimagesdownload()
+        arguments = {"keywords": search_term, "limit": 1, "print_urls": True}
