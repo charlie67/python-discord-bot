@@ -100,25 +100,6 @@ def get_youtube_autoplay_video(video_id_for_autoplay):
         return None, None
 
 
-def search_for_video(search_terms):
-    request = youtube.search().list(
-        part="snippet",
-        q=search_terms,
-        type="video",
-        topicId="/m/04rlf",
-        videoCategoryId="10",
-        maxResults=1
-    )
-    response = request.execute()
-    try:
-        video = response.get('items')[0]
-        video_id = video.get('id').get('videoId')
-        video_url = "https://www.youtube.com/watch?v=" + video_id
-        return video_id, video_url
-    except IndexError:
-        return None, None
-
-
 class Video:
     video_url: str
     video_id: str
@@ -130,6 +111,7 @@ class Video:
     filename: str
     play_type: PlayTypes
     author_name: str
+    time_started: int = 0
 
     def __init__(self, author_name, video_url=None, video_id=None, video_title=None, thumbnail_url=None,
                  video_length=None,
