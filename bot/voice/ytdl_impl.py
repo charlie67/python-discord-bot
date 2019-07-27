@@ -84,11 +84,11 @@ class YTDLSource(discord.PCMVolumeTransformer):
             playlist_id = data['id']
             return voice_helpers.get_videos_on_playlist(playlist_id, author_name)
 
-        video_title = data['title']
-        video_length = data['duration']
-        thumbnail_url = data['thumbnail']
-        video_id = data['id']
-        video_url = data['webpage_url']
+        video_title = data['title'] if 'title' in data else "Unknown"
+        video_length = data['duration'] if 'duration' in data else 0
+        thumbnail_url = data['thumbnail'] if 'thumbnail' in data else ""
+        video_id = data['id'] if 'id' in data else ""
+        video_url = data['webpage_url'] if 'webpage_url' in data else ""
 
         cls.url_data_map[video_url] = data
 

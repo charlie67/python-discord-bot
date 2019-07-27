@@ -46,8 +46,3 @@ class Image(commands.Cog):
         image_file = File(file)
 
         await ctx.channel.send(file=image_file)
-
-    @commands.command(aliases=["di", "download-image"])
-    async def download_image(self, ctx, url: str, image_name: str):
-        wget.download(url, IMAGE_DIR + image_name + ".jpg", )
-        return await ctx.send(embed=discord.Embed(title="{} downloaded".format(image_name)))
