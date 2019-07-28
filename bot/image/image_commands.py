@@ -51,13 +51,13 @@ class Image(commands.Cog):
 
         await ctx.channel.send(file=image_file)
 
-    @commands.command(name="downloadimage", aliases=["di", "download-image"])
-    async def download_image_(self, ctx, url: str, image_name: str):
-        wget.download(url, IMAGE_DIR + image_name + ".jpg", )
-        return await ctx.send(embed=discord.Embed(title="{} downloaded".format(image_name)))
-
     @commands.command(name="imagesearch")
     async def image_search_(self, ctx, *, search_term: str):
+        """
+        Searches Google images for search_term, picks a random result and send the image to discord
+        :param ctx: The message that triggered this command
+        :param search_term: The string to search for on google images
+        """
         await ctx.trigger_typing()
 
         response = google_images_download.googleimagesdownload()
@@ -73,13 +73,18 @@ class Image(commands.Cog):
         image_embed.set_image(url=image_url)
         await ctx.send(embed=image_embed)
 
-    @commands.command(name="redditsearch")
-    async def reddit_search_(self, ctx, *, subreddit_search):
+    @commands.command(name="redditsearch", help="Find a random image from the provided subreddit")
+    async def reddit_search_(self, ctx, *, subreddit):
+        """
+        Find a random image for a subreddit that is provided as the argument subreddit
+        :param ctx: The message that triggered this command
+        :param subreddit: The subreddit to find an image for
+        """
         await ctx.trigger_typing()
 
         r_search = praw.Reddit(user_agent="hi reddit", client_id=config.REDDIT_CLIENT_ID,
                                client_secret=config.REDDIT_CLIENT_SECRET)
-        sub = r_search.subreddit(subreddit_search)
+        sub = r_search.subreddit(subreddit)
         posts = sub.hot(limit=50)
         posts.next()
         image_number = random.randint(0, 49)
