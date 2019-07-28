@@ -7,6 +7,7 @@ import logging
 from async_timeout import timeout
 from discord import FFmpegPCMAudio
 
+import config
 from voice import voice_helpers
 from voice.voice_helpers import Video
 from voice.ytdl_impl import YTDLSource
@@ -64,9 +65,9 @@ class MusicPlayer:
             self.current = video
 
             if video.file:
-                print("broken")
-
-            player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
+                player = FFmpegPCMAudio("/bot/assets/audio/" + video.filename, executable=config.FFMPEG_PATH)
+            else:
+                player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
 
             video.time_started = int(time.time())
             self._guild.voice_client.play(player,
@@ -89,7 +90,7 @@ class MusicPlayer:
 
         if not self.current.youtube:
             self.logger.error("Previous video is not youtube so can't get an autoplay video")
-            return
+            return await self.next.set()
 
         if self.shutting_down:
             self.logger.debug("Voice client is shutting down so not finding an autoplay video")
