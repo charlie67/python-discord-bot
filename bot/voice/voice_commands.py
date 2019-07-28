@@ -14,24 +14,6 @@ from voice.voice_helpers import Video
 from voice.ytdl_impl import YTDLSource
 import time
 
-FFMPEG_PATH = '/usr/bin/ffmpeg'
-
-ytdl_format_options = {
-    'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-    'restrictfilenames': True,
-    'noplaylist': True,
-    'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
-}
-
-ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-
 TIMEOUT_VALUE = 3
 
 
@@ -85,9 +67,8 @@ async def minute_second_string(time_int):
 
 
 class Voice(commands.Cog):
-    players = {}
 
-    bot = None
+    __slots__ = ('bot', 'players', 'logger')
 
     def __init__(self, bot):
         self.bot = bot
@@ -96,6 +77,8 @@ class Voice(commands.Cog):
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
         self.logger.addHandler(handler)
+
+        self.players = {}
 
     async def cleanup(self, guild):
         try:
@@ -258,7 +241,7 @@ class Voice(commands.Cog):
         else:
             await ctx.send("Now playing file {}".format(currently_playing.filename))
 
-    @commands.command(name='leave', aliases=['stop'])
+    @commands.command(name='leave', aliases=['stop', 'die'])
     async def leave_(self, ctx):
         """
         Leave the voice channel if connected and stop playing any music
