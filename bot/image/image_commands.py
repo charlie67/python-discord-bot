@@ -4,7 +4,6 @@ import logging
 import sys
 import random
 import discord
-import wget
 import praw
 
 from discord.ext import commands
