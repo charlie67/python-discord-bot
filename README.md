@@ -1,6 +1,6 @@
 # discord-bot
 
-###Set up: <br />
+### Set up: <br />
 follow the virtualenv instructions:
 https://discordpy.readthedocs.io/en/rewrite/intro.html
 For youtube client install <br />
@@ -8,7 +8,7 @@ pip install --upgrade google-api-python-client
 
 The discord token is stored in config.py create this file and then add config='token_here'
 
-####Config File:
+#### Config File:
 A file named config.py needs to be place in the bot directory this provides all the
  necessary API keys and install locations
  
