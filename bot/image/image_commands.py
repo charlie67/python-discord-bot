@@ -1,8 +1,11 @@
+import json
 import os
 import io
 import logging
 import sys
 import random
+
+import aiohttp
 import discord
 import praw
 
@@ -88,8 +91,27 @@ class Image(commands.Cog):
         posts.next()
         image_number = random.randint(0, 49)
         post_to_return = posts._listing.children[image_number]
-        image_url = post_to_return.preview['images'][0]['source']['url']
+        image_url = post_to_return.url
 
-        image_embed = discord.Embed()
-        image_embed.set_image(url=image_url)
-        return await ctx.send(embed=image_embed)
+        return await ctx.send(image_url)
+
+    @commands.command(name="gif", aliases=['gifsearch'])
+    async def gif_(self, ctx, *, search_term):
+        await ctx.trigger_typing()
+
+        url = "https://api.gfycat.com/v1/gfycats/search?search_text={}&count=51".format(search_term)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                data = await resp.text()
+            json_data = json.loads(data)
+
+            gifs = json_data['gfycats']
+            image_number = random.randint(0, gifs.__len__() - 1)
+            try:
+                gif_url = gifs[image_number]['gifUrl']
+            except IndexError:
+                return await ctx.send("Could not find a gif for {}".format(search_term))
+
+            gif_embed = discord.Embed()
+            gif_embed.set_image(url=gif_url)
+            return await ctx.send(embed=gif_embed)
