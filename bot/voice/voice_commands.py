@@ -20,10 +20,7 @@ TIMEOUT_VALUE = 3
 # IDEAS
 # playtop to insert at the top of the queue
 # search for song
-# remove from queue
-# queue shows autoplay song
 # play history
-# set volume
 # turn off autoplay
 # view all of the queue using emoji reactions
 
@@ -128,7 +125,7 @@ class Voice(commands.Cog):
         video_list_length = video_list.__len__()
 
         if video_list_length > 1:
-            await ctx.send(embed=discord.Embed(title="Queued {} items".format(video_list_length)))
+            return await ctx.send(embed=discord.Embed(title="Queued {} items".format(video_list_length)))
 
         video = video_list.__getitem__(0)
 
@@ -194,7 +191,7 @@ class Voice(commands.Cog):
         string_to_send = ""
         too_many_item_string = ""
         for video in player.queue._queue:
-            if counter >= 5:
+            if counter >= 10:
                 too_many_item_string = ("And {} other songs".format(player.queue.qsize() - 5))
                 break
 
