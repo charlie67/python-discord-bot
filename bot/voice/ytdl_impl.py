@@ -109,5 +109,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
             # take first item from a playlist
             data = data['entries'][0]
 
+        video_length = data['duration'] if 'duration' in data else 0
+
         filename = data['url'] if stream else ytdl.prepare_filename(url)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options, before_options=beforeArgs), data=data)
+        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options, before_options=beforeArgs), data=data), video_length
