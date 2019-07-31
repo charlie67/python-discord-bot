@@ -54,7 +54,7 @@ def turn_raw_playlist_items_into_videos(playlist_items: list, author_name):
         video_id = item.get('snippet').get('resourceId').get('videoId')
         video_url = "https://www.youtube.com/watch?v=" + str(video_id)
         video_title = item.get('snippet').get('title')
-        video_length = get_video_duration(video_id)
+        video_length = 0
         thumbnail_url = item.get('snippet').get('thumbnails').get('default').get('url')
 
         videos.append(Video(video_url=video_url, video_id=video_id, video_title=video_title,
@@ -132,7 +132,3 @@ class Video:
             self.play_type = PlayTypes.AUTO_PLAYING
         else:
             self.play_type = PlayTypes.QUEUED
-
-
-
-
