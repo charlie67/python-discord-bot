@@ -251,6 +251,52 @@ class Voice(commands.Cog):
 
         await self.cleanup(ctx.guild)
 
+    @commands.command(name="volume")
+    async def volume_(self, ctx, volume: int):
+        vc = ctx.voice_client
+
+        if not vc or not vc.is_connected():
+            return await ctx.send('I am not currently in a voice channel!')
+
+        if not 0 < volume < 101:
+            return await ctx.send('Please enter a value between 1 and 100.')
+
+        player = self.get_player(ctx)
+
+        if vc.source:
+            vc.source.volume = volume / 100
+
+        player.volume = volume / 100
+
+        return await ctx.send("Set the volume to {}".format(volume))
+
+    @commands.command(name="remove")
+    async def remove_(self, ctx, item_to_remove: int):
+        vc = ctx.voice_client
+
+        if not vc or not vc.is_connected():
+            return await ctx.send('I am not currently in a voice channel!')
+
+        player = self.get_player(ctx)
+
+        if player.queue.qsize() < item_to_remove:
+            return await ctx.send("There aren't {} videos on the queue".format(item_to_remove))
+
+        del player.queue._queue[item_to_remove - 1]
+
+        return await ctx.send("Removed item {} from the queue".format(item_to_remove))
+
+    @commands.command(name="clear")
+    async def clear_(self, ctx):
+        vc = ctx.voice_client
+
+        if not vc or not vc.is_connected():
+            return await ctx.send('I am not currently in a voice channel!')
+
+        player = self.get_player(ctx)
+        player.queue._queue.clear()
+        return await ctx.send("Cleared the queue")
+
     @play_.before_invoke
     @play_file_.before_invoke
     async def ensure_voice(self, ctx):
