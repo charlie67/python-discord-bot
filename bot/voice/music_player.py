@@ -20,7 +20,8 @@ class MusicPlayer:
     When the bot disconnects from the Voice it's instance will be destroyed.
     """
 
-    __slots__ = ('bot', '_guild', '_channel', '_cog', 'queue', 'next', 'current', 'np', 'volume', 'logger', 'shutting_down')
+    __slots__ = (
+    'bot', '_guild', '_channel', '_cog', 'queue', 'next', 'current', 'np', 'volume', 'logger', 'shutting_down')
 
     def __init__(self, ctx):
         self.bot = ctx.bot
@@ -67,7 +68,8 @@ class MusicPlayer:
             if video.file:
                 player = FFmpegPCMAudio("/bot/assets/audio/" + video.filename, executable=config.FFMPEG_PATH)
             else:
-                player = await YTDLSource.from_url(video.video_url, loop=self.bot.loop, stream=True)
+                player, self.current.video_length = await YTDLSource.from_url(video.video_url, loop=self.bot.loop,
+                                                                              stream=True)
 
             video.time_started = int(time.time())
             self._guild.voice_client.play(player,
@@ -115,4 +117,5 @@ class MusicPlayer:
 
     def destroy(self, guild):
         """Disconnect and cleanup the player."""
+        self.shutting_down = True
         return self.bot.loop.create_task(self._cog.cleanup(guild))
