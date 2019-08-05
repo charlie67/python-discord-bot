@@ -21,7 +21,6 @@ TIMEOUT_VALUE = 3
 # playtop to insert at the top of the queue
 # search for song
 # play history
-# turn off autoplay
 # view all of the queue using emoji reactions
 
 async def get_or_create_audio_source(ctx):
@@ -78,6 +77,7 @@ class Voice(commands.Cog):
         self.players = {}
 
     async def cleanup(self, guild):
+
         try:
             player = self.players[guild.id]
             player.shutting_down = True
@@ -286,7 +286,7 @@ class Voice(commands.Cog):
 
         return await ctx.send("Removed item {} from the queue".format(item_to_remove))
 
-    @commands.command(name="clear")
+    @commands.command(name="clear", help="Clear the queue")
     async def clear_(self, ctx):
         vc = ctx.voice_client
 
@@ -319,3 +319,13 @@ class Voice(commands.Cog):
         voice_client: discord.voice_client = member.guild.voice_client
         if voice_client and voice_client.channel.members.__len__() == 1:
             Timer(TIMEOUT_VALUE, self.voice_client_disconnect_check, parameter=member.guild)
+
+    @commands.Cog.listener()
+    async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
+        if before.region != after.region:
+            self.logger.debug("Server region has changed")
+            voice_client: discord.voice_client = after.voice_client
+            if voice_client:
+                player = self.players[before.id]
+                await self.cleanup(before)
+                await after.text_channels.__getitem__(0).send("Can you not change the server region you ADHD twat?")

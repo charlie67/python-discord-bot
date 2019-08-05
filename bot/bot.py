@@ -39,21 +39,6 @@ async def on_message(message):
     if author != bot.user:
         await bot.process_commands(message)
 
-# @bot.event
-# async def on_command_error(ctx, error):
-#     await ctx.send("Error executing {}: {}".format(ctx.message.content, error))
-#     logger.error("Error executing {}".format(ctx.message.content), error)
-
-
-@bot.event
-async def on_guild_update(before: discord.Guild, after: discord.Guild):
-    if before.region != after.region:
-        logger.debug("Server region has changed")
-        voice_client: discord.voice_client = after.voice_client
-        if voice_client:
-            await voice_client.disconnect(force=True)
-            await after.text_channels.__getitem__(0).send("Can you not change the server region you ADHD twat?")
-
 
 if __name__ == '__main__':
     import config
