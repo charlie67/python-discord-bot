@@ -7,4 +7,4 @@ ffmpeg-normalize==1.15.1
 wget==3.2
 isodate==0.6.0
 google_images_download==2.8.0
-praw==6.3.1
+praw==6.5.1
